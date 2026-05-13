@@ -1,0 +1,6 @@
+/gtr
+*.exe
+.DS_Store
+
+# Editor local state (avoid nested repos or machine-specific settings in commits)
+.vscode/
