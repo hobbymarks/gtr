@@ -25,7 +25,7 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
 
-**Current status:** Phase 0 is implemented in this repository; Phase 1 (Google + minimal translate path) is next.
+**Current status:** Phase 1 (Google + minimal translate path) is implemented; Phase 2 (registry polish, Bing, `auto`) is next.
 
 ## Per-phase testing and verification
 
@@ -63,6 +63,8 @@ go mod tidy
 go build -o gtr ./cmd/gtr
 ./gtr --help
 ./gtr -V
+./gtr -e google -t fr hello
+echo hello | ./gtr -t fr -b
 ```
 
 Link a version string at build time:

@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 	"github.com/ueki/gtr/internal/config"
 	"github.com/ueki/gtr/internal/engine"
 )
@@ -16,12 +18,25 @@ var Version = "dev"
 
 // Execute runs the root command.
 func Execute() error {
-	return newRoot().Execute()
+	return newRoot().ExecuteContext(context.Background())
+}
+
+// stdinIsTTYFn reports whether os.Stdin is a character device. Tests may replace it.
+var stdinIsTTYFn = func() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 func newRoot() *cobra.Command {
-	var engineName string
-	var printVersion bool
+	var (
+		engineName      string
+		printVersion    bool
+		target          string
+		source          string
+		hostLang        string
+		brief           bool
+		noAutocorrect   bool
+		debug           bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "gtr [text ...]",
@@ -29,7 +44,10 @@ func newRoot() *cobra.Command {
 		Long: strings.TrimSpace(`
 gtr is a Go rewrite-in-progress of the translate-shell idea: one CLI, multiple
 translation backends. Remote engines rely on undocumented HTTP endpoints and
-may break without notice; use responsibly and see the README for scope.`),
+may break without notice; use responsibly and see the README for scope.
+
+Provide text as arguments, or pipe stdin when there are no arguments. Target
+language (-t / --target) is required for translation.`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
@@ -38,27 +56,74 @@ may break without notice; use responsibly and see the README for scope.`),
 				_, err := fmt.Fprintln(cmd.OutOrStdout(), Version)
 				return err
 			}
+
 			engineName = strings.TrimSpace(strings.ToLower(engineName))
 			if engineName == "" {
 				return errors.New("engine name must not be empty")
 			}
-			if len(args) == 0 {
+
+			target = strings.TrimSpace(target)
+			source = strings.TrimSpace(source)
+			if source == "" {
+				source = "auto"
+			}
+			hostLang = strings.TrimSpace(hostLang)
+			if hostLang == "" {
+				hostLang = "en"
+			}
+
+			stdinTTY := stdinIsTTYFn()
+			if target == "" && len(args) == 0 && stdinTTY {
 				return cmd.Help()
 			}
-			if _, ok := engine.Lookup(engineName); !ok {
+			if target == "" {
+				return errors.New("target language is required (-t / --target)")
+			}
+
+			text, err := textFromArgsOrStdin(args, os.Stdin, stdinTTY)
+			if err != nil {
+				return err
+			}
+
+			factory, ok := engine.Lookup(engineName)
+			if !ok {
 				names := engine.Names()
 				if len(names) == 0 {
-					return fmt.Errorf("unknown engine %q (no engines registered yet; see Phase 1)", engineName)
+					return fmt.Errorf("unknown engine %q (no engines registered)", engineName)
 				}
 				return fmt.Errorf("unknown engine %q (registered: %s)", engineName, strings.Join(names, ", "))
 			}
-			return errors.New("translation is not implemented yet (Phase 1)")
+			eng, err := factory()
+			if err != nil {
+				return fmt.Errorf("engine %q: %w", engineName, err)
+			}
+
+			out, err := eng.Translate(cmd.Context(), engine.TranslateInput{
+				Text:           text,
+				Source:         source,
+				Target:         target,
+				HostLang:       hostLang,
+				Brief:          brief,
+				NoAutocorrect:  noAutocorrect,
+				Debug:          debug,
+			})
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", out.Text)
+			return err
 		},
 	}
 
 	cmd.Flags().SortFlags = false
 	cmd.Flags().BoolVarP(&printVersion, "version", "V", false, "Print version and exit")
 	cmd.Flags().StringVarP(&engineName, "engine", "e", config.DefaultEngine, "translation engine (temporary default: "+config.DefaultEngine+")")
+	cmd.Flags().StringVarP(&target, "target", "t", "", "target language code (required)")
+	cmd.Flags().StringVarP(&source, "source", "s", "auto", "source language code (default auto)")
+	cmd.Flags().StringVar(&hostLang, "host-lang", "en", "host / UI language code sent to the engine (default en)")
+	cmd.Flags().BoolVarP(&brief, "brief", "b", false, "Brief output (translation text only, trimmed)")
+	cmd.Flags().BoolVar(&noAutocorrect, "no-autocorrect", false, "Disable autocorrect (Google: qc instead of qca)")
+	cmd.Flags().BoolVar(&debug, "debug", false, "Log request URL to stderr (no credentials; includes query text)")
 
 	return cmd
 }

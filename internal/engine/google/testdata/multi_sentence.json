@@ -1,0 +1,4 @@
+{
+  "response": [[["A","a",null,null,3],["B","b",null,null,3]],null,"en"],
+  "want": "AB"
+}

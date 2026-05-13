@@ -3,9 +3,16 @@ package engine
 import "testing"
 
 func TestNamesSorted(t *testing.T) {
+	regMu.Lock()
 	prev := registry
-	t.Cleanup(func() { registry = prev })
 	registry = map[string]Factory{}
+	regMu.Unlock()
+	t.Cleanup(func() {
+		regMu.Lock()
+		registry = prev
+		regMu.Unlock()
+	})
+
 	Register("bing", func() (Engine, error) { return nil, nil })
 	Register("google", func() (Engine, error) { return nil, nil })
 	got := Names()

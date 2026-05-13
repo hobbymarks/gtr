@@ -9,6 +9,9 @@ type TranslateInput struct {
 	Target   string
 	HostLang string
 	Brief    bool
+	// NoAutocorrect maps to translate-shell -no-autocorrect (qc vs qca).
+	NoAutocorrect bool
+	Debug         bool
 }
 
 // TranslateOutput is the normalized response from an engine.

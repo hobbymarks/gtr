@@ -36,6 +36,10 @@ func TestVersionFlag_long(t *testing.T) {
 }
 
 func TestNoArgsShowsHelp(t *testing.T) {
+	old := stdinIsTTYFn
+	stdinIsTTYFn = func() bool { return true }
+	t.Cleanup(func() { stdinIsTTYFn = old })
+
 	cmd := newRoot()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -43,5 +47,20 @@ func TestNoArgsShowsHelp(t *testing.T) {
 	_ = cmd.Execute()
 	if !strings.Contains(out.String(), "gtr") {
 		t.Fatalf("expected help output, got %q", out.String())
+	}
+}
+
+func TestMissingTargetWithText(t *testing.T) {
+	cmd := newRoot()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"hello"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "target") {
+		t.Fatalf("got %v", err)
 	}
 }
