@@ -46,6 +46,9 @@ mod-verify:
 vet:
     go vet ./...
 
+lint:
+    golangci-lint run ./...
+
 fmt:
     go fmt ./...
 
