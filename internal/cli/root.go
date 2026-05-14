@@ -44,6 +44,9 @@ func newRoot() *cobra.Command {
 		inputPath     string
 		outputPath    string
 		dictionary    bool
+		speak         bool
+		view          bool
+		shell         bool
 	)
 
 	cmd := &cobra.Command{
@@ -60,7 +63,8 @@ leading SRC:TL token (e.g. :en or ja:en) without setting -s/-t.
 
 Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 --identify for language detection, --dump for raw HTTP response bodies.
-Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, hunspell).`),
+Phase 5+: -d dictionary payload (Google), spell engines; --speak (Google TTS);
+--view (pager); --shell (line REPL).`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
@@ -118,8 +122,23 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 			if identify && dump {
 				return errors.New("cannot combine --identify and --dump")
 			}
+			if shell && identify {
+				return errors.New("cannot combine --shell and --identify")
+			}
+			if shell && view {
+				return errors.New("cannot combine --shell and --view")
+			}
+			if shell && speak {
+				return errors.New("cannot combine --shell and --speak")
+			}
+			if view && strings.TrimSpace(outputPath) != "" {
+				return errors.New("cannot combine --view and -o")
+			}
 			if dictionary && dump {
 				return errors.New("cannot combine --dictionary and --dump")
+			}
+			if speak && (identify || dump) {
+				return errors.New("cannot combine --speak with --identify or --dump")
 			}
 			if joinArgv && strings.TrimSpace(inputPath) != "" {
 				return errors.New("cannot combine -j and -i")
@@ -144,36 +163,45 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 				return fmt.Errorf("engine %q: %w", canon, engErr)
 			}
 
-			if isSpellEngine(canon) && !identify && strings.TrimSpace(target) == "" {
+			if isSpellEngine(canon) && !identify && !shell && strings.TrimSpace(target) == "" {
 				target = strings.TrimSpace(source)
 			}
 
-			if !identify && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
+			if !identify && !shell && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
 				return cmd.Help()
 			}
-			if !identify && target == "" {
+			if !identify && !shell && target == "" {
 				return errors.New("target language is required (-t / --target, or a leading SRC:TL token)")
 			}
 
 			var text string
 			var err error
-			switch {
-			case joinArgv:
-				text = strings.Join(args, " ")
-			case strings.TrimSpace(inputPath) != "":
-				text, err = readTextFile(inputPath)
-				if err != nil {
-					return err
-				}
-			default:
-				text, err = textFromArgsOrStdin(args, os.Stdin, stdinTTY)
-				if err != nil {
-					return err
+			if !shell {
+				switch {
+				case joinArgv:
+					text = strings.Join(args, " ")
+				case strings.TrimSpace(inputPath) != "":
+					text, err = readTextFile(inputPath)
+					if err != nil {
+						return err
+					}
+				default:
+					text, err = textFromArgsOrStdin(args, os.Stdin, stdinTTY)
+					if err != nil {
+						return err
+					}
 				}
 			}
 
 			if dictionary && !identify && !engine.CapabilitiesOf(canon).SupportsDictionary {
 				return fmt.Errorf("engine %q does not support dictionary mode (-d)", canon)
+			}
+			if speak && !identify {
+				switch canon {
+				case "google", "auto":
+				default:
+					return fmt.Errorf("engine %q does not support --speak (only google and auto)", canon)
+				}
 			}
 
 			out := cmd.OutOrStdout()
@@ -190,6 +218,14 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 			if closeOut != nil {
 				defer closeOut()
 			}
+			if view {
+				pw, cleanup, err := openPagerWriter(cmd.Context())
+				if err != nil {
+					return err
+				}
+				out = pw
+				defer cleanup()
+			}
 
 			if identify {
 				li, ok := eng.(engine.LanguageIdentifier)
@@ -202,6 +238,20 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 				}
 				_, err = fmt.Fprintln(out, lang)
 				return err
+			}
+
+			if shell {
+				base := engine.TranslateInput{
+					Source:        source,
+					Target:        target,
+					HostLang:      hostLang,
+					Brief:         brief,
+					NoAutocorrect: noAutocorrect,
+					Debug:         debug,
+					Dump:          dump,
+					Dictionary:    dictionary,
+				}
+				return RunShell(cmd, eng, base)
 			}
 
 			allTargets := append([]string{target}, extraTargets...)
@@ -220,6 +270,9 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 				if err != nil {
 					return err
 				}
+				inForTTS := engine.TranslateInput{
+					Text: text, Source: source, Target: tl, HostLang: hostLang,
+				}
 				if len(allTargets) == 1 {
 					_, err = fmt.Fprintf(out, "%s\n", outi.Text)
 				} else {
@@ -235,6 +288,15 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 				}
 				if outi.Dictionary != "" {
 					if _, err = fmt.Fprintf(out, "\n--\n%s\n", outi.Dictionary); err != nil {
+						return err
+					}
+				}
+				if speak {
+					u, err := googleTTSURLForEngine(eng, inForTTS, outi.Text)
+					if err != nil {
+						return err
+					}
+					if err := playGoogleTTS(cmd.Context(), u); err != nil {
 						return err
 					}
 				}
@@ -262,6 +324,9 @@ Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, 
 	cmd.Flags().StringVarP(&inputPath, "input", "i", "", "Read input text from this file path or file:// URL")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Write output to this file path or file:// URL (truncates)")
 	cmd.Flags().BoolVarP(&dictionary, "dictionary", "d", false, "Include dictionary / auxiliary JSON segments when the engine supports it (Google)")
+	cmd.Flags().BoolVar(&speak, "speak", false, "After translation, play Google TTS for the translated text (requires local player: mpv, ffplay, …)")
+	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (default less -R, or more on Windows)")
+	cmd.Flags().BoolVar(&shell, "shell", false, "Interactive line-at-a-time translation on stdin (exit/quit to leave)")
 
 	return cmd
 }

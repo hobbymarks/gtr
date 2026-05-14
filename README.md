@@ -25,7 +25,9 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
 
-**Current status:** Through **Phase 5**: spell engines (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary JSON excerpts, and engine capability checks. Phases 6+ follow the upstream plan.
+**Current status:** Through **Phase 6**: **`--speak`** (Google TTS + local player), **`--view`** (pager), and **`--shell`** (line REPL). Phase 7 (release engineering) is next.
+
+### Phase 4 (CLI / I/O) examples
 
 ```bash
 ./gtr :en 'bonjour'                    # auto → en (no -t/-s when defaults)
@@ -34,6 +36,13 @@ Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.
 ./gtr -j -t ja a b c                   # input text "a b c" (never stdin)
 ./gtr --identify 'hola'                # print detected language code
 ./gtr --dump -t de 'test'              # raw HTTP body (debug; engine-specific)
+./gtr --list-engines              # table: ENGINE / TTS / DICT
+./gtr -t de hello                 # default -e auto → google or bing by pair
+./gtr -e yandex -t ru "hello"     # may fail if API changes
+./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
+./gtr -e goo -t fr hi             # fuzzy prefix → google
+./gtr -e spell -s en 'some text'          # aspell or hunspell
+./gtr -e google -d -t de 'Wanderlust'   # translation + dictionary JSON when present
 ```
 
 `apertium` does not implement language identification; use `google`, `bing`, `yandex`, or `auto` for **`--identify`**.
@@ -42,25 +51,21 @@ Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.
 
 | Engine | Role | TTS | Dictionary payload |
 |--------|------|-----|----------------------|
-| `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | no | yes* |
+| `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | yes* | yes* |
 | `google` | `translate.googleapis.com` `translate_a/single`. | yes | yes |
 | `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). | yes | yes |
 | `yandex` | `translate.yandex.net` `api/v1/tr.json/translate` (mobile-style; `ucid` per process). | yes | no (upstream path disabled in translate-shell) |
 | `apertium` | `www.apertium.org/apy/translate` GET; `auto` source → `en` like translate-shell. | no | no |
 | `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). | no | no |
 
-\*`auto` **`-d`** delegates to the chosen backend; dictionary text appears only when that backend supplies segments (Google in this release).
+\*`auto` **`-d`** delegates to the chosen backend; dictionary text appears only when that backend supplies segments (Google in this release). **`--speak`** is implemented only when `auto` routes to Google in this release.
 
-### Phase 4 (CLI / I/O) examples
+### Phase 6 (presentation) examples
 
 ```bash
-./gtr --list-engines              # table: ENGINE / TTS / DICT
-./gtr -t de hello                 # default -e auto → google or bing by pair
-./gtr -e yandex -t ru "hello"     # may fail if API changes
-./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
-./gtr -e goo -t fr hi             # fuzzy prefix → google
-./gtr -e spell -s en 'some text'          # aspell or hunspell
-./gtr -e google -d -t de 'Wanderlust'   # translation + dictionary JSON when present
+./gtr -e google --speak -t de 'hello'   # translate then play TTS (mpv / ffplay / afplay)
+./gtr --view --list-engines             # pipe output through $PAGER
+./gtr --shell -e auto -t fr             # line-at-a-time REPL; exit or quit to leave
 ```
 
 Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:
@@ -123,6 +128,7 @@ go build -ldflags "-X main.version=0.1.0" -o gtr ./cmd/gtr
 | `HTTPS_PROXY`  | Same for HTTPS.                             |
 | `NO_PROXY`     | Bypass list for proxies.                   |
 | `USER_AGENT`   | Default `User-Agent` on outbound requests (same name as translate-shell). |
+| `PAGER`        | Used by **`--view`** (default `less -R`, or `more` on Windows). |
 
 ## License
 
