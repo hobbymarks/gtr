@@ -42,6 +42,14 @@ In the upstream plan, **Phase 6 is called “optional” for scheduling** (pager
 
 `apertium` does not implement language identification; use `google`, `bing`, `yandex`, or `auto` for **`--identify`**.
 
+### Engine name matching (`-e` / `--engine`)
+
+Names are **case-insensitive**. If the name is not exact, **fuzzy match** picks the **shortest registered engine name** that has your input as a **prefix** (ties broken lexicographically). For example, **`-e ap`** can match **`aspell`** before **`apertium`**. Prefer **full names** when in doubt (`-e apertium`, `-e aspell`).
+
+### Pager (`--view` and `$PAGER`)
+
+The pager command is built by **splitting `$PAGER` on spaces** (no shell-style quoting). If the pager binary lives under a path **with spaces**, put a wrapper script on `PATH` or point `PAGER` at a single-token executable name.
+
 ## Engines
 
 | Engine | Role | TTS | Dictionary payload |
@@ -81,8 +89,8 @@ Each roadmap phase is only **done** when it ships **automated tests** plus a **r
 
 | Requirement | What to do |
 |-------------|------------|
-| **Automated tests** | New behavior gets table tests, golden fixtures under `testdata/` (parsers, URL builders), or focused unit tests. Default `go test ./...` must stay **off the live network** unless behind `-tags=integration` (see plan). |
-| **Static checks** | `go vet ./...` and `go mod verify` (CI runs both). |
+| **Automated tests** | New behavior gets table tests, golden fixtures under `testdata/` (parsers, URL builders), or focused unit tests. Default `go test ./...` must stay **off the live network** unless behind `-tags=integration` (see [integration placeholder](internal/cli/integration_live_test.go)). |
+| **Static checks** | `go vet ./...`, `go mod verify`, and **golangci-lint** in CI (see [.golangci.yml](.golangci.yml); locally: `just lint` or `scripts/verify.sh` if `golangci-lint` is on `PATH`). |
 | **Concurrency** | On Linux, CI runs `go test -race ./...` for data races. |
 | **Binary smoke** | After build: `gtr -V` and `gtr --help` must succeed (CI runs these). |
 
@@ -134,7 +142,7 @@ go build -ldflags "-X main.version=0.1.0" -o gtr ./cmd/gtr
 ## Releases
 
 - Version is injected with **`-ldflags "-X main.version=VERSION"`** (see **Build** above).
-- [GoReleaser](https://goreleaser.com/) config: [.goreleaser.yaml](.goreleaser.yaml). Example: tag `v0.1.0`, then `goreleaser release` with `GITHUB_TOKEN` set.
+- [GoReleaser](https://goreleaser.com/) config: [.goreleaser.yaml](.goreleaser.yaml). Example: tag `v0.1.0`, set `GITHUB_TOKEN`, then run **`goreleaser release`** so **GitHub Releases** publishes archives for that tag (first-time setup: confirm repo permissions and `.goreleaser.yaml` targets).
 
 ## License
 

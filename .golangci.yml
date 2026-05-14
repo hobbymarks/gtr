@@ -1,0 +1,18 @@
+# golangci-lint — keep this small so CI stays fast and noise-free.
+# Run: golangci-lint run ./...   (or: go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2 run ./...)
+run:
+  timeout: 5m
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - staticcheck

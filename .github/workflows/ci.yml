@@ -29,6 +29,13 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: golangci-lint
+        if: runner.os == 'Linux'
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62
+          args: --timeout=5m
+
       - name: Test (race on Linux)
         if: runner.os == 'Linux'
         run: go test -race ./...
