@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"strings"
 	"testing"
 )
@@ -34,9 +35,17 @@ func TestTextFromArgsOrStdin_ttyNoArgs(t *testing.T) {
 	}
 }
 
-func TestTextFromArgsOrStdin_emptyStdin(t *testing.T) {
-	_, err := textFromArgsOrStdin(nil, bytes.NewReader([]byte("  \n")), false)
-	if err == nil {
-		t.Fatal("expected error")
+func TestReadTextFile_roundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/in.txt"
+	if err := os.WriteFile(path, []byte("  hi  \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readTextFile("file://" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "hi" {
+		t.Fatalf("got %q", got)
 	}
 }

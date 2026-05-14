@@ -13,6 +13,17 @@ func TestParseTranslateResponse_ok(t *testing.T) {
 	}
 }
 
+func TestParseBingResponse_detected(t *testing.T) {
+	raw := `[{"detectedLanguage":{"language":"de","score":1},"translations":[{"text":"hello"}]}]`
+	text, detected, err := parseBingResponse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text != "hello" || detected != "de" {
+		t.Fatalf("text=%q detected=%q", text, detected)
+	}
+}
+
 func TestParseTranslateResponse_status400(t *testing.T) {
 	raw := `[{"statusCode":400}]`
 	_, err := parseTranslateResponse([]byte(raw))

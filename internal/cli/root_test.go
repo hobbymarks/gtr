@@ -91,3 +91,39 @@ func TestListEngines(t *testing.T) {
 		}
 	}
 }
+
+func TestIdentifyUnsupportedEngine(t *testing.T) {
+	cmd := newRoot()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"-e", "apertium", "--identify", "hello"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "identification") {
+		t.Fatalf("expected identification error, got %v", err)
+	}
+}
+
+func TestCannotCombineIdentifyAndDump(t *testing.T) {
+	cmd := newRoot()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--identify", "--dump", "-t", "en", "x"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "combine") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestJoinRequiresArgs(t *testing.T) {
+	cmd := newRoot()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"-j", "-t", "en"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "-j") {
+		t.Fatalf("got %v", err)
+	}
+}

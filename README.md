@@ -25,7 +25,20 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
 
-**Current status:** Phase 3 is implemented (Yandex + Apertium engines, per-engine **capabilities** metadata, `--list-engines` table). Phase 4 (CLI / I/O parity) is next.
+**Current status:** Phase 4 is implemented (optional leading **SRC:TL** / multi-target **+**, **`-i` / `-o`** with **`file://`**, **`-j`**, **`--identify`**, **`--dump`**). Phase 5+ follows the upstream plan.
+
+### Phase 4 (CLI / I/O) examples
+
+```bash
+./gtr :en 'bonjour'                    # auto → en (no -t/-s when defaults)
+./gtr 'auto:en+de' 'hello'             # translate to en then de (same input)
+./gtr -i ./in.txt -o ./out.txt -t fr   # file I/O (paths or file:// URLs)
+./gtr -j -t ja a b c                   # input text "a b c" (never stdin)
+./gtr --identify 'hola'                # print detected language code
+./gtr --dump -t de 'test'              # raw HTTP body (debug; engine-specific)
+```
+
+`apertium` does not implement language identification; use `google`, `bing`, `yandex`, or `auto` for **`--identify`**.
 
 ## Engines
 

@@ -73,6 +73,10 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		return engine.TranslateOutput{}, fmt.Errorf("apertium: response body exceeds %d bytes", maxReadBody)
 	}
 
+	if in.Dump {
+		return engine.TranslateOutput{Text: string(body)}, nil
+	}
+
 	if resp.StatusCode == http.StatusTooManyRequests {
 		return engine.TranslateOutput{}, fmt.Errorf("apertium: rate limiting is in effect (HTTP %d)", resp.StatusCode)
 	}

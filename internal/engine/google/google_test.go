@@ -43,6 +43,17 @@ func TestParseTranslateSingleResponse_golden(t *testing.T) {
 	}
 }
 
+func TestParseDetectedSourceLanguage(t *testing.T) {
+	raw := `[[],[], "de", [], "hello"]`
+	got, err := ParseDetectedSourceLanguage([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "de" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestParseTranslateSingleResponse_errors(t *testing.T) {
 	cases := []struct {
 		name string
