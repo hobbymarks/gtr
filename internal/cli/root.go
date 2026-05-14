@@ -43,6 +43,7 @@ func newRoot() *cobra.Command {
 		joinArgv      bool
 		inputPath     string
 		outputPath    string
+		dictionary    bool
 	)
 
 	cmd := &cobra.Command{
@@ -58,7 +59,8 @@ language (-t / --target) is required for translation unless you use an optional
 leading SRC:TL token (e.g. :en or ja:en) without setting -s/-t.
 
 Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
---identify for language detection, --dump for raw HTTP response bodies.`),
+--identify for language detection, --dump for raw HTTP response bodies.
+Phase 5: -d dictionary payload (Google) and local spell engines (spell, aspell, hunspell).`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
@@ -113,15 +115,11 @@ Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 				}
 			}
 
-			if !identify && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
-				return cmd.Help()
-			}
-			if !identify && target == "" {
-				return errors.New("target language is required (-t / --target, or a leading SRC:TL token)")
-			}
-
 			if identify && dump {
 				return errors.New("cannot combine --identify and --dump")
+			}
+			if dictionary && dump {
+				return errors.New("cannot combine --dictionary and --dump")
 			}
 			if joinArgv && strings.TrimSpace(inputPath) != "" {
 				return errors.New("cannot combine -j and -i")
@@ -131,6 +129,30 @@ Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 			}
 			if joinArgv && len(args) == 0 {
 				return errors.New("-j requires at least one text argument")
+			}
+
+			canon, factory, ok := engine.LookupFuzzy(engineName)
+			if !ok {
+				names := engine.Names()
+				if len(names) == 0 {
+					return fmt.Errorf("unknown engine %q (no engines registered)", engineName)
+				}
+				return fmt.Errorf("unknown engine %q (registered: %s)", engineName, strings.Join(names, ", "))
+			}
+			eng, engErr := factory()
+			if engErr != nil {
+				return fmt.Errorf("engine %q: %w", canon, engErr)
+			}
+
+			if isSpellEngine(canon) && !identify && strings.TrimSpace(target) == "" {
+				target = strings.TrimSpace(source)
+			}
+
+			if !identify && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
+				return cmd.Help()
+			}
+			if !identify && target == "" {
+				return errors.New("target language is required (-t / --target, or a leading SRC:TL token)")
 			}
 
 			var text string
@@ -150,17 +172,8 @@ Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 				}
 			}
 
-			canon, factory, ok := engine.LookupFuzzy(engineName)
-			if !ok {
-				names := engine.Names()
-				if len(names) == 0 {
-					return fmt.Errorf("unknown engine %q (no engines registered)", engineName)
-				}
-				return fmt.Errorf("unknown engine %q (registered: %s)", engineName, strings.Join(names, ", "))
-			}
-			eng, err := factory()
-			if err != nil {
-				return fmt.Errorf("engine %q: %w", canon, err)
+			if dictionary && !identify && !engine.CapabilitiesOf(canon).SupportsDictionary {
+				return fmt.Errorf("engine %q does not support dictionary mode (-d)", canon)
 			}
 
 			out := cmd.OutOrStdout()
@@ -202,6 +215,7 @@ Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 					NoAutocorrect: noAutocorrect,
 					Debug:         debug,
 					Dump:          dump,
+					Dictionary:    dictionary,
 				})
 				if err != nil {
 					return err
@@ -218,6 +232,11 @@ Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 				}
 				if err != nil {
 					return err
+				}
+				if outi.Dictionary != "" {
+					if _, err = fmt.Fprintf(out, "\n--\n%s\n", outi.Dictionary); err != nil {
+						return err
+					}
 				}
 			}
 			if len(allTargets) > 1 {
@@ -242,8 +261,18 @@ Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 	cmd.Flags().BoolVarP(&joinArgv, "join", "j", false, "Use joined arguments as input text (never read stdin)")
 	cmd.Flags().StringVarP(&inputPath, "input", "i", "", "Read input text from this file path or file:// URL")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Write output to this file path or file:// URL (truncates)")
+	cmd.Flags().BoolVarP(&dictionary, "dictionary", "d", false, "Include dictionary / auxiliary JSON segments when the engine supports it (Google)")
 
 	return cmd
+}
+
+func isSpellEngine(name string) bool {
+	switch name {
+	case "spell", "aspell", "hunspell":
+		return true
+	default:
+		return false
+	}
 }
 
 // Main is a tiny entrypoint helper so cmd/gtr can stay minimal.

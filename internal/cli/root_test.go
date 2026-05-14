@@ -10,6 +10,7 @@ import (
 	_ "github.com/ueki/gtr/internal/engine/auto"
 	_ "github.com/ueki/gtr/internal/engine/bing"
 	_ "github.com/ueki/gtr/internal/engine/google"
+	_ "github.com/ueki/gtr/internal/engine/spell"
 	_ "github.com/ueki/gtr/internal/engine/yandex"
 )
 
@@ -82,10 +83,10 @@ func TestListEngines(t *testing.T) {
 	}
 	out := buf.String()
 	names := engine.Names()
-	if len(names) < 5 {
+	if len(names) < 8 {
 		t.Fatalf("expected engines registered, got %v", names)
 	}
-	for _, need := range []string{"ENGINE", "google", "bing", "auto", "yandex", "apertium"} {
+	for _, need := range []string{"ENGINE", "google", "bing", "auto", "yandex", "apertium", "spell", "aspell", "hunspell"} {
 		if !strings.Contains(out, need) {
 			t.Fatalf("output missing %q: %q", need, out)
 		}

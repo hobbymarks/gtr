@@ -20,11 +20,15 @@ type TranslateInput struct {
 	Debug           bool
 	// Dump returns the raw HTTP response body as Text without parsing (translate-shell -dump).
 	Dump bool
+	// Dictionary asks engines that support it to fill TranslateOutput.Dictionary (e.g. Google extras).
+	Dictionary bool
 }
 
 // TranslateOutput is the normalized response from an engine.
 type TranslateOutput struct {
 	Text string
+	// Dictionary holds auxiliary payload (definitions / alternatives) when requested.
+	Dictionary string
 }
 
 // Engine performs translation for a single backend (google, bing, etc.).

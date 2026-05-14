@@ -25,9 +25,7 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
 
-**Current status:** Phase 4 is implemented (optional leading **SRC:TL** / multi-target **+**, **`-i` / `-o`** with **`file://`**, **`-j`**, **`--identify`**, **`--dump`**). Phase 5+ follows the upstream plan.
-
-### Phase 4 (CLI / I/O) examples
+**Current status:** Through **Phase 5**: spell engines (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary JSON excerpts, and engine capability checks. Phases 6+ follow the upstream plan.
 
 ```bash
 ./gtr :en 'bonjour'                    # auto → en (no -t/-s when defaults)
@@ -44,11 +42,16 @@ Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.
 
 | Engine | Role | TTS | Dictionary payload |
 |--------|------|-----|----------------------|
-| `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | no | no (delegates) |
+| `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | no | yes* |
 | `google` | `translate.googleapis.com` `translate_a/single`. | yes | yes |
 | `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). | yes | yes |
 | `yandex` | `translate.yandex.net` `api/v1/tr.json/translate` (mobile-style; `ucid` per process). | yes | no (upstream path disabled in translate-shell) |
 | `apertium` | `www.apertium.org/apy/translate` GET; `auto` source → `en` like translate-shell. | no | no |
+| `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). | no | no |
+
+\*`auto` **`-d`** delegates to the chosen backend; dictionary text appears only when that backend supplies segments (Google in this release).
+
+### Phase 4 (CLI / I/O) examples
 
 ```bash
 ./gtr --list-engines              # table: ENGINE / TTS / DICT
@@ -56,6 +59,8 @@ Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.
 ./gtr -e yandex -t ru "hello"     # may fail if API changes
 ./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
 ./gtr -e goo -t fr hi             # fuzzy prefix → google
+./gtr -e spell -s en 'some text'          # aspell or hunspell
+./gtr -e google -d -t de 'Wanderlust'   # translation + dictionary JSON when present
 ```
 
 Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:

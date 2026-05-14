@@ -80,7 +80,13 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 	if in.Brief {
 		text = strings.TrimSpace(text)
 	}
-	return engine.TranslateOutput{Text: text}, nil
+	out := engine.TranslateOutput{Text: text}
+	if in.Dictionary {
+		if d, err := FormatDictionaryPayload(body); err == nil && d != "" {
+			out.Dictionary = d
+		}
+	}
+	return out, nil
 }
 
 func truncateForError(b []byte, n int) string {
