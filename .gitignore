@@ -2,5 +2,7 @@
 *.exe
 .DS_Store
 
-# Editor local state (avoid nested repos or machine-specific settings in commits)
-.vscode/
+# Editor: ignore everything under .vscode except shared project hints.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
