@@ -41,5 +41,5 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 func init() {
 	engine.Register("auto", func() (engine.Engine, error) {
 		return &Engine{}, nil
-	})
+	}, engine.Capabilities{SupportsTTS: false, SupportsDictionary: false})
 }

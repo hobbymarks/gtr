@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 	"github.com/ueki/gtr/internal/config"
@@ -58,12 +59,17 @@ language (-t / --target) is required for translation.`),
 				return err
 			}
 			if listEngines {
+				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+				if _, err := fmt.Fprintln(w, "ENGINE\tTTS\tDICT"); err != nil {
+					return err
+				}
 				for _, n := range engine.Names() {
-					if _, err := fmt.Fprintln(cmd.OutOrStdout(), n); err != nil {
+					c := engine.CapabilitiesOf(n)
+					if _, err := fmt.Fprintf(w, "%s\t%v\t%v\n", n, c.SupportsTTS, c.SupportsDictionary); err != nil {
 						return err
 					}
 				}
-				return nil
+				return w.Flush()
 			}
 
 			engineName = strings.TrimSpace(strings.ToLower(engineName))

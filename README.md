@@ -25,21 +25,24 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
 
-**Current status:** Phase 2 is implemented (Bing engine, `auto` router from translate-shell language tables, `--list-engines`, fuzzy `-e` prefix match, default engine `auto`). Phase 3 (Yandex + Apertium) is next.
+**Current status:** Phase 3 is implemented (Yandex + Apertium engines, per-engine **capabilities** metadata, `--list-engines` table). Phase 4 (CLI / I/O parity) is next.
 
-## Engines (Phase 2)
+## Engines
 
-| Engine | Role |
-|--------|------|
-| `auto` | **Default.** Picks `google` when both languages are Google-supported, else `bing` when both are Bing-supported, else `google` (translate-shell fallback). |
-| `google` | `translate.googleapis.com` `translate_a/single` (Phase 1). |
-| `bing` | Bing Web Translator: session setup on `/translator`, then `ttranslatev3` POST. |
+| Engine | Role | TTS | Dictionary payload |
+|--------|------|-----|----------------------|
+| `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | no | no (delegates) |
+| `google` | `translate.googleapis.com` `translate_a/single`. | yes | yes |
+| `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). | yes | yes |
+| `yandex` | `translate.yandex.net` `api/v1/tr.json/translate` (mobile-style; `ucid` per process). | yes | no (upstream path disabled in translate-shell) |
+| `apertium` | `www.apertium.org/apy/translate` GET; `auto` source → `en` like translate-shell. | no | no |
 
 ```bash
-./gtr --list-engines
-./gtr -t de hello              # default -e auto → google or bing by pair
-./gtr -e bing -t de hello
-./gtr -e goo -t fr hi          # fuzzy prefix → google
+./gtr --list-engines              # table: ENGINE / TTS / DICT
+./gtr -t de hello                 # default -e auto → google or bing by pair
+./gtr -e yandex -t ru "hello"     # may fail if API changes
+./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
+./gtr -e goo -t fr hi             # fuzzy prefix → google
 ```
 
 Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:
