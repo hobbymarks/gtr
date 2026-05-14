@@ -23,9 +23,9 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 ## Development plan
 
-Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
+Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) (synced from translate-shell).
 
-**Current status:** Through **Phase 6**: **`--speak`** (Google TTS + local player), **`--view`** (pager), and **`--shell`** (line REPL). Phase 7 (release engineering) is next.
+**Current status:** Phases **0–7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented in this tree: online engines, `auto`, spell checkers (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary payload (JSON excerpts), **`--speak`** (Google TTS + local player), **`--view`** (pager), **`--shell`** (line REPL), plus release scaffolding (GoReleaser template, MIT **LICENSE**, upstream check script).
 
 ### Phase 4 (CLI / I/O) examples
 
@@ -36,13 +36,6 @@ Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.
 ./gtr -j -t ja a b c                   # input text "a b c" (never stdin)
 ./gtr --identify 'hola'                # print detected language code
 ./gtr --dump -t de 'test'              # raw HTTP body (debug; engine-specific)
-./gtr --list-engines              # table: ENGINE / TTS / DICT
-./gtr -t de hello                 # default -e auto → google or bing by pair
-./gtr -e yandex -t ru "hello"     # may fail if API changes
-./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
-./gtr -e goo -t fr hi             # fuzzy prefix → google
-./gtr -e spell -s en 'some text'          # aspell or hunspell
-./gtr -e google -d -t de 'Wanderlust'   # translation + dictionary JSON when present
 ```
 
 `apertium` does not implement language identification; use `google`, `bing`, `yandex`, or `auto` for **`--identify`**.
@@ -58,14 +51,19 @@ Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.
 | `apertium` | `www.apertium.org/apy/translate` GET; `auto` source → `en` like translate-shell. | no | no |
 | `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). | no | no |
 
-\*`auto` **`-d`** delegates to the chosen backend; dictionary text appears only when that backend supplies segments (Google in this release). **`--speak`** is implemented only when `auto` routes to Google in this release.
-
-### Phase 6 (presentation) examples
+\*`auto` delegates capabilities to the chosen backend; **`--speak`** is implemented only when routing matches Google TTS in this release.
 
 ```bash
-./gtr -e google --speak -t de 'hello'   # translate then play TTS (mpv / ffplay / afplay)
-./gtr --view --list-engines             # pipe output through $PAGER
-./gtr --shell -e auto -t fr             # line-at-a-time REPL; exit or quit to leave
+./gtr --list-engines              # table: ENGINE / TTS / DICT
+./gtr -t de hello                 # default -e auto → google or bing by pair
+./gtr -e yandex -t ru "hello"     # may fail if API changes
+./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
+./gtr -e goo -t fr hi             # fuzzy prefix → google
+./gtr -e spell -s en 'some text'          # aspell or hunspell (target defaults to source)
+./gtr -e google -d -t de 'Wanderlust'     # translation + dictionary JSON segments when present
+./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
+./gtr --shell -e auto -t fr               # line-at-a-time REPL; exit or quit to stop
+./scripts/check_upstream.sh               # reminder to diff against pinned translate-shell
 ```
 
 Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:
@@ -130,6 +128,11 @@ go build -ldflags "-X main.version=0.1.0" -o gtr ./cmd/gtr
 | `USER_AGENT`   | Default `User-Agent` on outbound requests (same name as translate-shell). |
 | `PAGER`        | Used by **`--view`** (default `less -R`, or `more` on Windows). |
 
+## Releases
+
+- Version is injected with **`-ldflags "-X main.version=VERSION"`** (see **Build** above).
+- [GoReleaser](https://goreleaser.com/) config: [.goreleaser.yaml](.goreleaser.yaml). Example: tag `v0.1.0`, then `goreleaser release` with `GITHUB_TOKEN` set.
+
 ## License
 
-SPDX: add a `LICENSE` file when you pick one for this project.
+[LICENSE](LICENSE) (MIT).
