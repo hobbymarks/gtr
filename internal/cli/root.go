@@ -63,7 +63,7 @@ leading SRC:TL token (e.g. :en or ja:en) without setting -s/-t.
 
 Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
 --identify for language detection, --dump for raw HTTP response bodies.
-Phase 5+: -d dictionary payload (Google), spell engines; --speak (Google TTS);
+Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google TTS);
 --view (pager); --shell (line REPL).`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
@@ -129,7 +129,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak (Google TTS);
 				return errors.New("cannot combine --shell and --view")
 			}
 			if shell && speak {
-				return errors.New("cannot combine --shell and --speak")
+				return errors.New("cannot combine --shell and --speak / --play")
 			}
 			if view && strings.TrimSpace(outputPath) != "" {
 				return errors.New("cannot combine --view and -o")
@@ -138,7 +138,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak (Google TTS);
 				return errors.New("cannot combine --dictionary and --dump")
 			}
 			if speak && (identify || dump) {
-				return errors.New("cannot combine --speak with --identify or --dump")
+				return errors.New("cannot combine --speak / --play with --identify or --dump")
 			}
 			if joinArgv && strings.TrimSpace(inputPath) != "" {
 				return errors.New("cannot combine -j and -i")
@@ -200,7 +200,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak (Google TTS);
 				switch canon {
 				case "google", "auto":
 				default:
-					return fmt.Errorf("engine %q does not support --speak (only google and auto)", canon)
+					return fmt.Errorf("engine %q does not support --speak / --play (only google and auto)", canon)
 				}
 			}
 
@@ -325,6 +325,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak (Google TTS);
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Write output to this file path or file:// URL (truncates)")
 	cmd.Flags().BoolVarP(&dictionary, "dictionary", "d", false, "Include dictionary / auxiliary JSON segments when the engine supports it (Google)")
 	cmd.Flags().BoolVar(&speak, "speak", false, "After translation, play Google TTS for the translated text (requires local player: mpv, ffplay, …)")
+	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak: play translated text via Google TTS (translate-shell-style)")
 	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (default less -R, or more on Windows)")
 	cmd.Flags().BoolVar(&shell, "shell", false, "Interactive line-at-a-time translation on stdin (exit/quit to leave)")
 
