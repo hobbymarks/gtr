@@ -25,7 +25,28 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) lives in translate-shell as `docs/DEVELOPMENT_PLAN.md` in that checkout. If you clone only `gtr`, copy that file into `docs/DEVELOPMENT_PLAN.md` here so the tree stays self-contained.
 
-**Current status:** Phase 1 (Google + minimal translate path) is implemented; Phase 2 (registry polish, Bing, `auto`) is next.
+**Current status:** Phase 2 is implemented (Bing engine, `auto` router from translate-shell language tables, `--list-engines`, fuzzy `-e` prefix match, default engine `auto`). Phase 3 (Yandex + Apertium) is next.
+
+## Engines (Phase 2)
+
+| Engine | Role |
+|--------|------|
+| `auto` | **Default.** Picks `google` when both languages are Google-supported, else `bing` when both are Bing-supported, else `google` (translate-shell fallback). |
+| `google` | `translate.googleapis.com` `translate_a/single` (Phase 1). |
+| `bing` | Bing Web Translator: session setup on `/translator`, then `ttranslatev3` POST. |
+
+```bash
+./gtr --list-engines
+./gtr -t de hello              # default -e auto → google or bing by pair
+./gtr -e bing -t de hello
+./gtr -e goo -t fr hi          # fuzzy prefix → google
+```
+
+Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:
+
+```bash
+python3 scripts/gen_language_support.py /path/to/translate-shell/include/LanguageData.awk
+```
 
 ## Per-phase testing and verification
 

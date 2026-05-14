@@ -19,28 +19,27 @@ func TestParseTranslateSingleResponse_golden(t *testing.T) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
-			name := e.Name()
-			t.Run(name, func(t *testing.T) {
-				raw, err := os.ReadFile(filepath.Join(dir, name))
-				if err != nil {
-					t.Fatal(err)
-				}
-				var doc struct {
-					Response json.RawMessage `json:"response"`
-					Want     string          `json:"want"`
-				}
-				if err := json.Unmarshal(raw, &doc); err != nil {
-					t.Fatal(err)
-				}
-				got, err := ParseTranslateSingleResponse(doc.Response)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if got != doc.Want {
-					t.Fatalf("got %q want %q", got, doc.Want)
-				}
-			})
-		}
+		name := e.Name()
+		t.Run(name, func(t *testing.T) {
+			raw, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var doc struct {
+				Response json.RawMessage `json:"response"`
+				Want     string          `json:"want"`
+			}
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			got, err := ParseTranslateSingleResponse(doc.Response)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != doc.Want {
+				t.Fatalf("got %q want %q", got, doc.Want)
+			}
+		})
 	}
 }
 

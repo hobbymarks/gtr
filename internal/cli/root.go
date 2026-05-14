@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 	"github.com/ueki/gtr/internal/config"
 	"github.com/ueki/gtr/internal/engine"
+	"golang.org/x/term"
 )
 
 // Version is set by main via -ldflags for releases.
@@ -28,14 +28,15 @@ var stdinIsTTYFn = func() bool {
 
 func newRoot() *cobra.Command {
 	var (
-		engineName      string
-		printVersion    bool
-		target          string
-		source          string
-		hostLang        string
-		brief           bool
-		noAutocorrect   bool
-		debug           bool
+		engineName    string
+		printVersion  bool
+		listEngines   bool
+		target        string
+		source        string
+		hostLang      string
+		brief         bool
+		noAutocorrect bool
+		debug         bool
 	)
 
 	cmd := &cobra.Command{
@@ -55,6 +56,14 @@ language (-t / --target) is required for translation.`),
 			if printVersion {
 				_, err := fmt.Fprintln(cmd.OutOrStdout(), Version)
 				return err
+			}
+			if listEngines {
+				for _, n := range engine.Names() {
+					if _, err := fmt.Fprintln(cmd.OutOrStdout(), n); err != nil {
+						return err
+					}
+				}
+				return nil
 			}
 
 			engineName = strings.TrimSpace(strings.ToLower(engineName))
@@ -85,7 +94,7 @@ language (-t / --target) is required for translation.`),
 				return err
 			}
 
-			factory, ok := engine.Lookup(engineName)
+			canon, factory, ok := engine.LookupFuzzy(engineName)
 			if !ok {
 				names := engine.Names()
 				if len(names) == 0 {
@@ -95,17 +104,17 @@ language (-t / --target) is required for translation.`),
 			}
 			eng, err := factory()
 			if err != nil {
-				return fmt.Errorf("engine %q: %w", engineName, err)
+				return fmt.Errorf("engine %q: %w", canon, err)
 			}
 
 			out, err := eng.Translate(cmd.Context(), engine.TranslateInput{
-				Text:           text,
-				Source:         source,
-				Target:         target,
-				HostLang:       hostLang,
-				Brief:          brief,
-				NoAutocorrect:  noAutocorrect,
-				Debug:          debug,
+				Text:          text,
+				Source:        source,
+				Target:        target,
+				HostLang:      hostLang,
+				Brief:         brief,
+				NoAutocorrect: noAutocorrect,
+				Debug:         debug,
 			})
 			if err != nil {
 				return err
@@ -117,7 +126,8 @@ language (-t / --target) is required for translation.`),
 
 	cmd.Flags().SortFlags = false
 	cmd.Flags().BoolVarP(&printVersion, "version", "V", false, "Print version and exit")
-	cmd.Flags().StringVarP(&engineName, "engine", "e", config.DefaultEngine, "translation engine (temporary default: "+config.DefaultEngine+")")
+	cmd.Flags().BoolVar(&listEngines, "list-engines", false, "Print registered engine names and exit")
+	cmd.Flags().StringVarP(&engineName, "engine", "e", config.DefaultEngine, "translation engine (default "+config.DefaultEngine+")")
 	cmd.Flags().StringVarP(&target, "target", "t", "", "target language code (required)")
 	cmd.Flags().StringVarP(&source, "source", "s", "auto", "source language code (default auto)")
 	cmd.Flags().StringVar(&hostLang, "host-lang", "en", "host / UI language code sent to the engine (default en)")

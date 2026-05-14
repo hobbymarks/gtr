@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/ueki/gtr/internal/engine"
+	_ "github.com/ueki/gtr/internal/engine/auto"
+	_ "github.com/ueki/gtr/internal/engine/bing"
+	_ "github.com/ueki/gtr/internal/engine/google"
 )
 
 func TestVersionFlag_V(t *testing.T) {
@@ -62,5 +67,25 @@ func TestMissingTargetWithText(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "target") {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestListEngines(t *testing.T) {
+	cmd := newRoot()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"--list-engines"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	names := engine.Names()
+	if len(names) < 3 {
+		t.Fatalf("expected engines registered, got %v", names)
+	}
+	for _, need := range []string{"google", "bing", "auto"} {
+		if !strings.Contains(out, need) {
+			t.Fatalf("output missing %q: %q", need, out)
+		}
 	}
 }
