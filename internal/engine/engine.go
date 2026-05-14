@@ -17,7 +17,9 @@ type TranslateInput struct {
 	Brief    bool
 	// NoAutocorrect maps to translate-shell -no-autocorrect (qc vs qca).
 	NoAutocorrect bool
-	Debug         bool
+	Debug           bool
+	// Dump returns the raw HTTP response body as Text without parsing (translate-shell -dump).
+	Dump bool
 }
 
 // TranslateOutput is the normalized response from an engine.
@@ -33,3 +35,8 @@ type Engine interface {
 
 // Factory constructs an Engine instance, for example after reading config.
 type Factory func() (Engine, error)
+
+// LanguageIdentifier is implemented by engines that can detect the language of arbitrary text.
+type LanguageIdentifier interface {
+	IdentifyLanguage(ctx context.Context, text string, hostLang string) (langCode string, err error)
+}

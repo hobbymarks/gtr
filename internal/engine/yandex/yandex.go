@@ -45,7 +45,7 @@ func newUCID() string {
 
 func (e *Engine) Name() string { return "yandex" }
 
-func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engine.TranslateOutput, error) {
+func (e *Engine) translatePost(ctx context.Context, in engine.TranslateInput) (body []byte, statusCode int, err error) {
 	sl, tl := stripDigraph(in.Source), stripDigraph(in.Target)
 	lang := tl
 	if sl != "auto" {
@@ -61,7 +61,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postURL, strings.NewReader(""))
 	if err != nil {
-		return engine.TranslateOutput{}, err
+		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
@@ -72,23 +72,35 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 
 	resp, err := e.HTTP.Do(req)
 	if err != nil {
-		return engine.TranslateOutput{}, fmt.Errorf("yandex: request: %w", err)
+		return nil, 0, fmt.Errorf("yandex: request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
+	body, err = io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
 	if err != nil {
-		return engine.TranslateOutput{}, fmt.Errorf("yandex: read body: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("yandex: read body: %w", err)
 	}
 	if int64(len(body)) > maxReadBody {
-		return engine.TranslateOutput{}, fmt.Errorf("yandex: response body exceeds %d bytes", maxReadBody)
+		return nil, resp.StatusCode, fmt.Errorf("yandex: response body exceeds %d bytes", maxReadBody)
+	}
+	return body, resp.StatusCode, nil
+}
+
+func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engine.TranslateOutput, error) {
+	body, statusCode, err := e.translatePost(ctx, in)
+	if err != nil {
+		return engine.TranslateOutput{}, err
 	}
 
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return engine.TranslateOutput{}, fmt.Errorf("yandex: rate limiting is in effect (HTTP %d)", resp.StatusCode)
+	if in.Dump {
+		return engine.TranslateOutput{Text: string(body)}, nil
 	}
-	if resp.StatusCode >= 400 {
-		return engine.TranslateOutput{}, fmt.Errorf("yandex: HTTP %d: %s", resp.StatusCode, truncate(body, 200))
+
+	if statusCode == http.StatusTooManyRequests {
+		return engine.TranslateOutput{}, fmt.Errorf("yandex: rate limiting is in effect (HTTP %d)", statusCode)
+	}
+	if statusCode >= 400 {
+		return engine.TranslateOutput{}, fmt.Errorf("yandex: HTTP %d: %s", statusCode, truncate(body, 200))
 	}
 
 	text, err := parseTranslateJSON(body)

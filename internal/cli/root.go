@@ -38,10 +38,15 @@ func newRoot() *cobra.Command {
 		brief         bool
 		noAutocorrect bool
 		debug         bool
+		dump          bool
+		identify      bool
+		joinArgv      bool
+		inputPath     string
+		outputPath    string
 	)
 
 	cmd := &cobra.Command{
-		Use:   "gtr [text ...]",
+		Use:   "gtr [SRC:TL] [text ...]",
 		Short: "Multi-engine translation CLI (translate-shell-inspired)",
 		Long: strings.TrimSpace(`
 gtr is a Go rewrite-in-progress of the translate-shell idea: one CLI, multiple
@@ -49,7 +54,11 @@ translation backends. Remote engines rely on undocumented HTTP endpoints and
 may break without notice; use responsibly and see the README for scope.
 
 Provide text as arguments, or pipe stdin when there are no arguments. Target
-language (-t / --target) is required for translation.`),
+language (-t / --target) is required for translation unless you use an optional
+leading SRC:TL token (e.g. :en or ja:en) without setting -s/-t.
+
+Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
+--identify for language detection, --dump for raw HTTP response bodies.`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
@@ -87,17 +96,58 @@ language (-t / --target) is required for translation.`),
 				hostLang = "en"
 			}
 
+			sourceChanged := cmd.Flags().Lookup("source").Changed
+			targetChanged := cmd.Flags().Lookup("target").Changed
+
 			stdinTTY := stdinIsTTYFn()
-			if target == "" && len(args) == 0 && stdinTTY {
-				return cmd.Help()
-			}
-			if target == "" {
-				return errors.New("target language is required (-t / --target)")
+
+			var extraTargets []string
+			args, pairSrc, pairTgts, stripped := stripLeadingLangSpec(args, sourceChanged, targetChanged)
+			if stripped {
+				if !sourceChanged {
+					source = pairSrc
+				}
+				if !targetChanged {
+					target = pairTgts[0]
+					extraTargets = append(extraTargets, pairTgts[1:]...)
+				}
 			}
 
-			text, err := textFromArgsOrStdin(args, os.Stdin, stdinTTY)
-			if err != nil {
-				return err
+			if !identify && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
+				return cmd.Help()
+			}
+			if !identify && target == "" {
+				return errors.New("target language is required (-t / --target, or a leading SRC:TL token)")
+			}
+
+			if identify && dump {
+				return errors.New("cannot combine --identify and --dump")
+			}
+			if joinArgv && strings.TrimSpace(inputPath) != "" {
+				return errors.New("cannot combine -j and -i")
+			}
+			if strings.TrimSpace(inputPath) != "" && len(args) > 0 {
+				return errors.New("cannot combine -i and positional text arguments")
+			}
+			if joinArgv && len(args) == 0 {
+				return errors.New("-j requires at least one text argument")
+			}
+
+			var text string
+			var err error
+			switch {
+			case joinArgv:
+				text = strings.Join(args, " ")
+			case strings.TrimSpace(inputPath) != "":
+				text, err = readTextFile(inputPath)
+				if err != nil {
+					return err
+				}
+			default:
+				text, err = textFromArgsOrStdin(args, os.Stdin, stdinTTY)
+				if err != nil {
+					return err
+				}
 			}
 
 			canon, factory, ok := engine.LookupFuzzy(engineName)
@@ -113,19 +163,66 @@ language (-t / --target) is required for translation.`),
 				return fmt.Errorf("engine %q: %w", canon, err)
 			}
 
-			out, err := eng.Translate(cmd.Context(), engine.TranslateInput{
-				Text:          text,
-				Source:        source,
-				Target:        target,
-				HostLang:      hostLang,
-				Brief:         brief,
-				NoAutocorrect: noAutocorrect,
-				Debug:         debug,
-			})
-			if err != nil {
+			out := cmd.OutOrStdout()
+			var closeOut func()
+			if op := strings.TrimSpace(outputPath); op != "" {
+				p := stripFileURLPrefix(op)
+				f, err := os.Create(p)
+				if err != nil {
+					return fmt.Errorf("create output file: %w", err)
+				}
+				out = f
+				closeOut = func() { _ = f.Close() }
+			}
+			if closeOut != nil {
+				defer closeOut()
+			}
+
+			if identify {
+				li, ok := eng.(engine.LanguageIdentifier)
+				if !ok {
+					return fmt.Errorf("engine %q does not support language identification", canon)
+				}
+				lang, err := li.IdentifyLanguage(cmd.Context(), text, hostLang)
+				if err != nil {
+					return err
+				}
+				_, err = fmt.Fprintln(out, lang)
 				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", out.Text)
+
+			allTargets := append([]string{target}, extraTargets...)
+			for i, tl := range allTargets {
+				outi, err := eng.Translate(cmd.Context(), engine.TranslateInput{
+					Text:          text,
+					Source:        source,
+					Target:        tl,
+					HostLang:      hostLang,
+					Brief:         brief,
+					NoAutocorrect: noAutocorrect,
+					Debug:         debug,
+					Dump:          dump,
+				})
+				if err != nil {
+					return err
+				}
+				if len(allTargets) == 1 {
+					_, err = fmt.Fprintf(out, "%s\n", outi.Text)
+				} else {
+					if i > 0 {
+						if _, err = fmt.Fprintln(out); err != nil {
+							return err
+						}
+					}
+					_, err = fmt.Fprintf(out, "[%s]\n%s", tl, outi.Text)
+				}
+				if err != nil {
+					return err
+				}
+			}
+			if len(allTargets) > 1 {
+				_, err = fmt.Fprintln(out)
+			}
 			return err
 		},
 	}
@@ -140,6 +237,11 @@ language (-t / --target) is required for translation.`),
 	cmd.Flags().BoolVarP(&brief, "brief", "b", false, "Brief output (translation text only, trimmed)")
 	cmd.Flags().BoolVar(&noAutocorrect, "no-autocorrect", false, "Disable autocorrect (Google: qc instead of qca)")
 	cmd.Flags().BoolVar(&debug, "debug", false, "Log request URL to stderr (no credentials; includes query text)")
+	cmd.Flags().BoolVar(&dump, "dump", false, "Print raw HTTP response body instead of parsed translation")
+	cmd.Flags().BoolVar(&identify, "identify", false, "Detect source language and print its code (no translation)")
+	cmd.Flags().BoolVarP(&joinArgv, "join", "j", false, "Use joined arguments as input text (never read stdin)")
+	cmd.Flags().StringVarP(&inputPath, "input", "i", "", "Read input text from this file path or file:// URL")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Write output to this file path or file:// URL (truncates)")
 
 	return cmd
 }

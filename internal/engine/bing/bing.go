@@ -53,18 +53,18 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 	return engine.TranslateOutput{}, lastErr
 }
 
-func (e *Engine) translateOnHost(ctx context.Context, origin string, in engine.TranslateInput) (engine.TranslateOutput, error) {
+// translateRequest performs setup and the translate POST, returning the raw body and HTTP status.
+func (e *Engine) translateRequest(ctx context.Context, origin, text, sl, tl string, debug bool) (body []byte, statusCode int, err error) {
 	cookie, ig, iid, token, key, err := e.setup(ctx, origin)
 	if err != nil {
-		return engine.TranslateOutput{}, err
+		return nil, 0, err
 	}
 
-	sl, tl := in.Source, in.Target
 	patchLangCodes(&sl, &tl)
 
 	postURL := origin + "/ttranslatev3?IG=" + url.QueryEscape(ig) + "&IID=" + url.QueryEscape(iid)
 	form := url.Values{}
-	form.Set("text", in.Text)
+	form.Set("text", text)
 	form.Set("fromLang", sl)
 	form.Set("to", tl)
 	form.Set("token", token)
@@ -73,7 +73,7 @@ func (e *Engine) translateOnHost(ctx context.Context, origin string, in engine.T
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, postURL, strings.NewReader(bodyStr))
 	if err != nil {
-		return engine.TranslateOutput{}, err
+		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
@@ -81,30 +81,42 @@ func (e *Engine) translateOnHost(ctx context.Context, origin string, in engine.T
 	if cookie != "" {
 		req.Header.Set("Cookie", cookie)
 	}
-	if in.Debug {
+	if debug {
 		_, _ = fmt.Fprintf(os.Stderr, "bing debug: POST %s\n", postURL)
 	}
 
 	resp, err := e.HTTP.Do(req)
 	if err != nil {
-		return engine.TranslateOutput{}, fmt.Errorf("bing: POST: %w", err)
+		return nil, 0, fmt.Errorf("bing: POST: %w", err)
 	}
 	defer resp.Body.Close()
 
 	limited := io.LimitReader(resp.Body, maxReadBody+1)
-	body, err := io.ReadAll(limited)
+	body, err = io.ReadAll(limited)
 	if err != nil {
-		return engine.TranslateOutput{}, fmt.Errorf("bing: read body: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("bing: read body: %w", err)
 	}
 	if int64(len(body)) > maxReadBody {
-		return engine.TranslateOutput{}, fmt.Errorf("bing: response body exceeds %d bytes", maxReadBody)
+		return nil, resp.StatusCode, fmt.Errorf("bing: response body exceeds %d bytes", maxReadBody)
+	}
+	return body, resp.StatusCode, nil
+}
+
+func (e *Engine) translateOnHost(ctx context.Context, origin string, in engine.TranslateInput) (engine.TranslateOutput, error) {
+	body, statusCode, err := e.translateRequest(ctx, origin, in.Text, in.Source, in.Target, in.Debug)
+	if err != nil {
+		return engine.TranslateOutput{}, err
 	}
 
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return engine.TranslateOutput{}, fmt.Errorf("bing: rate limiting is in effect (HTTP %d)", resp.StatusCode)
+	if in.Dump {
+		return engine.TranslateOutput{Text: string(body)}, nil
 	}
-	if resp.StatusCode >= 400 {
-		return engine.TranslateOutput{}, fmt.Errorf("bing: HTTP %d: %s", resp.StatusCode, truncate(body, 200))
+
+	if statusCode == http.StatusTooManyRequests {
+		return engine.TranslateOutput{}, fmt.Errorf("bing: rate limiting is in effect (HTTP %d)", statusCode)
+	}
+	if statusCode >= 400 {
+		return engine.TranslateOutput{}, fmt.Errorf("bing: HTTP %d: %s", statusCode, truncate(body, 200))
 	}
 	if len(bytes.TrimSpace(body)) == 0 {
 		return engine.TranslateOutput{}, fmt.Errorf("bing: empty response body")
@@ -244,28 +256,39 @@ func patchToLang(tl *string) {
 }
 
 func parseTranslateResponse(raw []byte) (string, error) {
+	text, _, err := parseBingResponse(raw)
+	return text, err
+}
+
+// parseBingResponse extracts translation text and optional detected source language.
+func parseBingResponse(raw []byte) (text string, detected string, err error) {
 	var root []map[string]interface{}
 	if err := json.Unmarshal(raw, &root); err != nil {
-		return "", fmt.Errorf("bing: invalid JSON: %w", err)
+		return "", "", fmt.Errorf("bing: invalid JSON: %w", err)
 	}
 	if len(root) == 0 {
-		return "", fmt.Errorf("bing: unexpected JSON root")
+		return "", "", fmt.Errorf("bing: unexpected JSON root")
 	}
 	first := root[0]
+	if dl, ok := first["detectedLanguage"].(map[string]interface{}); ok {
+		if lang, ok := dl["language"].(string); ok {
+			detected = lang
+		}
+	}
 	if sc, ok := first["statusCode"].(float64); ok && sc == 400 {
-		return "", fmt.Errorf("bing: does not support the specified language(s)")
+		return "", "", fmt.Errorf("bing: does not support the specified language(s)")
 	}
 	trans, ok := first["translations"].([]interface{})
 	if !ok || len(trans) == 0 {
-		return "", fmt.Errorf("bing: missing translations in response")
+		return "", "", fmt.Errorf("bing: missing translations in response")
 	}
 	t0, ok := trans[0].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("bing: malformed translations[0]")
+		return "", "", fmt.Errorf("bing: malformed translations[0]")
 	}
 	txt, ok := t0["text"].(string)
 	if !ok || strings.TrimSpace(txt) == "" {
-		return "", fmt.Errorf("bing: empty translation text")
+		return "", "", fmt.Errorf("bing: empty translation text")
 	}
-	return txt, nil
+	return txt, detected, nil
 }
