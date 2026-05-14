@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "Justfile": "just",
+      "**/Justfile": "just"
+    }
+  },
+  "extensions": {
+    "recommendations": ["nefrob.vscode-just"]
+  }
+}

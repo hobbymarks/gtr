@@ -1,9 +1,9 @@
 # Development tasks for gtr (https://github.com/casey/just)
 # Install: https://just.systems/   then: just --list
 #
-# If the editor shows bogus errors, another extension may be parsing this as a
-# Makefile. Install "vscode-just" (see .vscode/extensions.json) so
-# files.associations → "just" applies; or temporarily set that association to
+# Editor: if you see bogus "Makefile" errors here, open gtr.code-workspace in
+# VS Code / Cursor (File → Open Workspace from File…) and install the suggested
+# "vscode-just" extension; or set files.associations for "Justfile" → "just" or
 # "plaintext" in your user settings.
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]

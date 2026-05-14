@@ -2,7 +2,6 @@
 *.exe
 .DS_Store
 
-# Editor: ignore everything under .vscode except shared project hints.
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+# Local editor state (this repo may use a nested .vscode Git checkout; use
+# gtr.code-workspace for shared Justfile / extension hints instead).
+.vscode/
