@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"github.com/ueki/gtr/internal/engine"
+	_ "github.com/ueki/gtr/internal/engine/apertium"
 	_ "github.com/ueki/gtr/internal/engine/auto"
 	_ "github.com/ueki/gtr/internal/engine/bing"
 	_ "github.com/ueki/gtr/internal/engine/google"
+	_ "github.com/ueki/gtr/internal/engine/yandex"
 )
 
 func TestVersionFlag_V(t *testing.T) {
@@ -80,10 +82,10 @@ func TestListEngines(t *testing.T) {
 	}
 	out := buf.String()
 	names := engine.Names()
-	if len(names) < 3 {
+	if len(names) < 5 {
 		t.Fatalf("expected engines registered, got %v", names)
 	}
-	for _, need := range []string{"google", "bing", "auto"} {
+	for _, need := range []string{"ENGINE", "google", "bing", "auto", "yandex", "apertium"} {
 		if !strings.Contains(out, need) {
 			t.Fatalf("output missing %q: %q", need, out)
 		}

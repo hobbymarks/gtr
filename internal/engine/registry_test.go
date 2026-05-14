@@ -5,11 +5,14 @@ import "testing"
 func TestNamesSorted(t *testing.T) {
 	regMu.Lock()
 	prev := registry
+	prevCaps := capsMap
 	registry = map[string]Factory{}
+	capsMap = map[string]Capabilities{}
 	regMu.Unlock()
 	t.Cleanup(func() {
 		regMu.Lock()
 		registry = prev
+		capsMap = prevCaps
 		regMu.Unlock()
 	})
 

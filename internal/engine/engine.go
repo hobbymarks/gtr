@@ -2,6 +2,12 @@ package engine
 
 import "context"
 
+// Capabilities describes optional engine features (CLI help and future flags).
+type Capabilities struct {
+	SupportsTTS        bool
+	SupportsDictionary bool
+}
+
 // TranslateInput is the normalized request passed to engines (expanded in Phase 1).
 type TranslateInput struct {
 	Text     string

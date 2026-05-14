@@ -7,15 +7,22 @@ import (
 func TestLookupFuzzy(t *testing.T) {
 	regMu.Lock()
 	prev := registry
+	prevCaps := capsMap
 	registry = map[string]Factory{
 		"google": func() (Engine, error) { return nil, nil },
 		"bing":   func() (Engine, error) { return nil, nil },
 		"auto":   func() (Engine, error) { return nil, nil },
 	}
+	capsMap = map[string]Capabilities{
+		"google": {},
+		"bing":   {},
+		"auto":   {},
+	}
 	regMu.Unlock()
 	t.Cleanup(func() {
 		regMu.Lock()
 		registry = prev
+		capsMap = prevCaps
 		regMu.Unlock()
 	})
 
@@ -36,14 +43,20 @@ func TestLookupFuzzy(t *testing.T) {
 func TestLookupFuzzy_ambiguousShortest(t *testing.T) {
 	regMu.Lock()
 	prev := registry
+	prevCaps := capsMap
 	registry = map[string]Factory{
 		"goog":   func() (Engine, error) { return nil, nil },
 		"google": func() (Engine, error) { return nil, nil },
+	}
+	capsMap = map[string]Capabilities{
+		"goog":   {},
+		"google": {},
 	}
 	regMu.Unlock()
 	t.Cleanup(func() {
 		regMu.Lock()
 		registry = prev
+		capsMap = prevCaps
 		regMu.Unlock()
 	})
 	canon, _, ok := LookupFuzzy("go")
