@@ -25,7 +25,9 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) (synced from translate-shell).
 
-**Current status:** Phases **0–7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented in this tree: online engines, `auto`, spell checkers (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary payload (JSON excerpts), **`--speak`** (Google TTS + local player), **`--view`** (pager), **`--shell`** (line REPL), plus release scaffolding (GoReleaser template, MIT **LICENSE**, upstream check script).
+**Current status:** Phases **0–7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented in this tree: online engines, `auto`, spell checkers (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary payload (JSON excerpts), **TTS playback** via **`--speak`** or **`-play`** (Google TTS + local player), **`--view`** (pager), **`--shell`** (line REPL), plus release scaffolding (GoReleaser template, MIT **LICENSE**, upstream check script).
+
+In the upstream plan, **Phase 6 is called “optional” for scheduling** (pager / TTS / REPL can ship after batch translate is solid), not because playback is unwanted. This project implements TTS playback anyway.
 
 ### Phase 4 (CLI / I/O) examples
 
@@ -51,7 +53,7 @@ Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVEL
 | `apertium` | `www.apertium.org/apy/translate` GET; `auto` source → `en` like translate-shell. | no | no |
 | `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). | no | no |
 
-\*`auto` delegates capabilities to the chosen backend; **`--speak`** is implemented only when routing matches Google TTS in this release.
+\*`auto` delegates capabilities to the chosen backend; **`--speak`** / **`-play`** is implemented only when routing matches Google TTS in this release.
 
 ```bash
 ./gtr --list-engines              # table: ENGINE / TTS / DICT
@@ -62,6 +64,7 @@ Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVEL
 ./gtr -e spell -s en 'some text'          # aspell or hunspell (target defaults to source)
 ./gtr -e google -d -t de 'Wanderlust'     # translation + dictionary JSON segments when present
 ./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
+./gtr -e google -play -t de 'hello'      # same as --speak (translate-shell-style flag)
 ./gtr --shell -e auto -t fr               # line-at-a-time REPL; exit or quit to stop
 ./scripts/check_upstream.sh               # reminder to diff against pinned translate-shell
 ```
