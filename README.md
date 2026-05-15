@@ -1,6 +1,6 @@
 # gtr
 
-Go multi-engine translation CLI, inspired by [translate-shell](https://github.com/soimort/translate-shell). This repository follows a phased roadmap (see **Development plan** below).
+Go multi-engine translation CLI, inspired by [translate-shell](https://github.com/soimort/translate-shell).
 
 ## Goals
 
@@ -23,24 +23,46 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 ## Development plan
 
-Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) (synced from translate-shell), including **strengths, gaps, security notes, and the risk register**.
+Phased roadmap (Phase 0--7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) (synced from translate-shell), including **strengths, gaps, security notes, risks, and enhancements**.
 
-**Current status:** Phases **0–7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented in this tree: online engines, `auto`, spell checkers (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary payload (JSON excerpts), **TTS playback** via **`--speak`** or **`-play`** (Google TTS + local player), **`--view`** (pager), **`--shell`** (line REPL), plus release scaffolding (GoReleaser template, MIT **LICENSE**, upstream check script).
+**Current status:** Phases **0--7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented, plus six enhancement phases (A--F) covering bug fixes, code consolidation, test coverage, defense/resilience, UX features, and performance.
 
-In the upstream plan, **Phase 6 is called “optional” for scheduling** (pager / TTS / REPL can ship after batch translate is solid), not because playback is unwanted. This project implements TTS playback anyway.
-
-### Phase 4 (CLI / I/O) examples
+## Quick start
 
 ```bash
-./gtr :en 'bonjour'                    # auto → en (no -t/-s when defaults)
-./gtr 'auto:en+de' 'hello'             # translate to en then de (same input)
-./gtr -i ./in.txt -o ./out.txt -t fr   # file I/O (paths or file:// URLs)
-./gtr -j -t ja a b c                   # input text "a b c" (never stdin)
-./gtr --identify 'hola'                # print detected language code
-./gtr --dump -t de 'test'              # raw HTTP body (debug; engine-specific)
+./gtr -t de hello                     # translate to German (default engine: auto)
+./gtr :en 'bonjour'                   # auto -> en (no -t/-s when using SRC:TL token)
+./gtr 'auto:en+de' 'hello'            # translate to en then de (multi-target, parallel)
+./gtr -i ./in.txt -o ./out.txt -t fr  # file I/O (paths or file:// URLs)
+./gtr -j -t ja a b c                  # input text "a b c" (never stdin)
+./gtr --identify 'hola'               # print detected language code
+./gtr --dump -t de 'test'             # raw HTTP body (debug; engine-specific)
 ```
 
 `apertium` does not implement language identification; use `google`, `bing`, `yandex`, or `auto` for **`--identify`**.
+
+### New features (beyond upstream plan)
+
+```bash
+./gtr -t fr --json hello              # structured JSON output
+./gtr --timeout 10 -t de hello        # custom HTTP timeout (also GTR_TIMEOUT env)
+./gtr --no-color -t fr hello          # disable ANSI color output (also NO_COLOR env)
+./gtr --shell -e google -t fr         # line REPL with :engine, :target, :source etc.
+```
+
+### Shell meta-commands
+
+Inside `--shell` mode, type `:help` for a list. Supported commands:
+
+```
+:engine google     switch translation engine
+:target de         set target language
+:source en         set source language (auto for detect)
+:host en           set host/UI language
+:brief / :nobrief  toggle brief output
+:info              show current settings
+exit / quit        leave REPL
+```
 
 ### Engine name matching (`-e` / `--engine`)
 
@@ -56,59 +78,50 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 |--------|------|-----|----------------------|
 | `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | yes* | yes* |
 | `google` | `translate.googleapis.com` `translate_a/single`. | yes | yes |
-| `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). | yes | yes |
-| `yandex` | `translate.yandex.net` `api/v1/tr.json/translate` (mobile-style; `ucid` per process). | yes | no (upstream path disabled in translate-shell) |
-| `apertium` | `www.apertium.org/apy/translate` GET; `auto` source → `en` like translate-shell. | no | no |
-| `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). | no | no |
+| `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). Setup tokens cached 5 min. | no | yes |
+| `yandex` | `translate.yandex.net` `api/v1/tr.json/translate` (mobile-style; `ucid` per process). | no | no (upstream path disabled in translate-shell) |
+| `apertium` | `www.apertium.org/apy/translate` GET; `auto` source -> `en` like translate-shell. | no | no |
+| `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). Lazily resolved on first use. | no | no |
 
-\*`auto` delegates capabilities to the chosen backend; **`--speak`** / **`-play`** is implemented only when routing matches Google TTS in this release.
+\*`auto` delegates capabilities to the chosen backend; **`--speak`** / **`-play`** is implemented only when routing matches Google TTS.
+
+### Engine features
 
 ```bash
 ./gtr --list-engines              # table: ENGINE / TTS / DICT
-./gtr -t de hello                 # default -e auto → google or bing by pair
+./gtr -t de hello                 # default -e auto -> google or bing by pair
 ./gtr -e yandex -t ru "hello"     # may fail if API changes
 ./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
-./gtr -e goo -t fr hi             # fuzzy prefix → google
+./gtr -e goo -t fr hi             # fuzzy prefix -> google
 ./gtr -e spell -s en 'some text'          # aspell or hunspell (target defaults to source)
 ./gtr -e google -d -t de 'Wanderlust'     # translation + dictionary JSON segments when present
 ./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
 ./gtr -e google -play -t de 'hello'      # same as --speak (translate-shell-style flag)
-./gtr --shell -e auto -t fr               # line-at-a-time REPL; exit or quit to stop
+./gtr --shell -e auto -t fr               # line REPL; :help for commands, exit/quit to stop
 ./scripts/check_upstream.sh               # reminder to diff against pinned translate-shell
 ```
 
 Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:
 
 ```bash
+# go:generate directive is in internal/lang/lang.go
 python3 scripts/gen_language_support.py /path/to/translate-shell/include/LanguageData.awk
 ```
 
-## Per-phase testing and verification
+## Testing
 
-Each roadmap phase is only **done** when it ships **automated tests** plus a **repeatable verify** step. Treat CI as the source of truth; local runs should mirror it before you merge or tag.
+21 test files covering CLI arguments, input parsing, language spec parsing, all engine parsers (golden fixtures), auto routing, registry, fuzzy lookup, TTS URL building, Bing setup scraping, shell REPL, Yandex UCID, Google identify HTTP flow, pager, and audio player.
 
-| Requirement | What to do |
-|-------------|------------|
-| **Automated tests** | New behavior gets table tests, golden fixtures under `testdata/` (parsers, URL builders), or focused unit tests. Default `go test ./...` must stay **off the live network** unless behind `-tags=integration` (see [integration placeholder](internal/cli/integration_live_test.go)). |
-| **Static checks** | `go vet ./...`, `go mod verify`, and **golangci-lint** in CI (see [.golangci.yml](.golangci.yml); locally: `just lint` or `scripts/verify.sh` if `golangci-lint` is on `PATH`). |
-| **Concurrency** | On Linux, CI runs `go test -race ./...` for data races. |
-| **Binary smoke** | After build: `gtr -V` and `gtr --help` must succeed (CI runs these). |
+| Type | Command |
+|------|---------|
+| Unit / parser tests (no network) | `go test ./...` |
+| Race detector | `go test -race ./...` |
+| Integration (live HTTP) | `go test -tags=integration -count=1 ./internal/cli/` |
+| Full verify | `./scripts/verify.sh` |
 
-**One-shot local verify (Linux / macOS):**
+### Static checks
 
-```bash
-./scripts/verify.sh
-```
-
-On **Windows** (PowerShell), run the equivalent:
-
-```powershell
-go mod tidy; go mod verify; go vet ./...; go test ./...; go build -o gtr.exe ./cmd/gtr; ./gtr.exe -V
-```
-
-When you finish a phase, confirm **GitHub Actions is green** on your branch and attach a short note in the PR or commit (what you tested manually, if anything—e.g. one live translation smoke for an engine).
-
-**Git history:** land each completed phase as **one dedicated commit** on `main` (or your integration branch), using a message like `feat(phaseN): short summary` so history stays easy to bisect and review. WIP work can use multiple commits on a feature branch, then squash merge to one phase commit if you prefer a strictly linear log.
+`go vet ./...`, `go mod verify`, and **golangci-lint** in CI (see [.golangci.yml](.golangci.yml); locally: `just lint` or `scripts/verify.sh` if `golangci-lint` is on `PATH`).
 
 ## Build
 
@@ -121,6 +134,7 @@ go build -o gtr ./cmd/gtr
 ./gtr -V
 ./gtr -e google -t fr hello
 echo hello | ./gtr -t fr -b
+./gtr -e google -t fr+de --json hello    # multi-target JSON output
 ```
 
 Link a version string at build time:
@@ -131,13 +145,28 @@ go build -ldflags "-X main.version=0.1.0" -o gtr ./cmd/gtr
 
 ## Environment
 
-| Variable       | Effect                                      |
-|----------------|---------------------------------------------|
-| `HTTP_PROXY`   | Standard Go proxy support for HTTP clients. |
-| `HTTPS_PROXY`  | Same for HTTPS.                             |
-| `NO_PROXY`     | Bypass list for proxies.                   |
-| `USER_AGENT`   | Default `User-Agent` on outbound requests (same name as translate-shell). |
-| `PAGER`        | Used by **`--view`** (default `less -R`, or `more` on Windows). |
+| Variable | Effect |
+|----------|--------|
+| `HTTP_PROXY` | Standard Go proxy support for HTTP clients. |
+| `HTTPS_PROXY` | Same for HTTPS. |
+| `NO_PROXY` | Bypass list for proxies. |
+| `USER_AGENT` | Default `User-Agent` on outbound requests (same name as translate-shell). |
+| `PAGER` | Used by **`--view`** (default `less -R`, or `more` on Windows). |
+| `GTR_TIMEOUT` | HTTP request timeout in seconds (default 30; overridden by `--timeout`). |
+| `GTR_DEFAULT_TARGET` | Default target language when `-t` is omitted (also settable in `~/.gtrrc`). |
+| `NO_COLOR` | Disable ANSI color output (same as `--no-color`). |
+
+### Config file (`~/.gtrrc`)
+
+Simple `KEY=VALUE` format. Supported keys:
+
+```ini
+# ~/.gtrrc
+GTR_DEFAULT_TARGET=de
+GTR_TIMEOUT=15
+```
+
+Environment variables take precedence over config file values.
 
 ## Releases
 
