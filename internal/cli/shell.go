@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -10,9 +11,12 @@ import (
 	"github.com/hobbymarks/gtr/internal/engine"
 )
 
+// shellStdinFn returns the reader for shell input. Tests may replace it.
+var shellStdinFn = func() io.Reader { return os.Stdin }
+
 // RunShell reads lines from stdin, translates each non-empty line, and prints results until EOF.
 func RunShell(cmd *cobra.Command, eng engine.Engine, base engine.TranslateInput) error {
-	sc := bufio.NewScanner(os.Stdin)
+	sc := bufio.NewScanner(shellStdinFn())
 	const max = 512 << 10
 	sc.Buffer(make([]byte, 0, 64*1024), max)
 	for {
