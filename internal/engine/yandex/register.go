@@ -9,5 +9,5 @@ func init() {
 	// Dictionary path exists in translate-shell but is disabled (FIXME upstream).
 	engine.Register("yandex", func() (engine.Engine, error) {
 		return New(httpx.NewClient()), nil
-	}, engine.Capabilities{SupportsTTS: true, SupportsDictionary: false})
+	}, engine.Capabilities{SupportsTTS: false, SupportsDictionary: false})
 }

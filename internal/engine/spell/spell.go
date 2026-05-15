@@ -23,20 +23,30 @@ const (
 )
 
 // Engine runs an ispell-compatible spell checker subprocess (translate-shell parity).
+// Binary resolution is deferred to the first Translate() call to avoid running
+// external programs during init() / package import.
 type Engine struct {
-	mode   Mode
-	binary string
-	name   string // CLI engine name (spell, aspell, hunspell)
+	mode        Mode
+	binary      string
+	name        string // CLI engine name (spell, aspell, hunspell)
+	initialized bool
 }
 
-// New returns a spell engine or an error if no suitable binary exists.
-func New(mode Mode, engineName string) (*Engine, error) {
+// New returns a spell engine. Binary lookup is deferred to first use.
+func New(mode Mode, engineName string) *Engine {
+	return &Engine{mode: mode, name: engineName}
+}
+
+func (e *Engine) ensureInit() error {
+	if e.initialized {
+		return nil
+	}
 	var (
 		bin string
 		err error
-		eff = mode
+		eff = e.mode
 	)
-	switch mode {
+	switch e.mode {
 	case ModeAspell:
 		bin, err = lookTool("aspell", []string{"--version"})
 	case ModeHunspell:
@@ -51,9 +61,12 @@ func New(mode Mode, engineName string) (*Engine, error) {
 		}
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &Engine{mode: eff, binary: bin, name: engineName}, nil
+	e.mode = eff
+	e.binary = bin
+	e.initialized = true
+	return nil
 }
 
 func (e *Engine) Name() string {
@@ -61,6 +74,9 @@ func (e *Engine) Name() string {
 }
 
 func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engine.TranslateOutput, error) {
+	if err := e.ensureInit(); err != nil {
+		return engine.TranslateOutput{}, err
+	}
 	if in.Dump {
 		return engine.TranslateOutput{}, fmt.Errorf("%s: --dump is not supported for spell engines", e.Name())
 	}
