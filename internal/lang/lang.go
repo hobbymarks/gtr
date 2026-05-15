@@ -9,6 +9,7 @@ import (
 )
 
 //go:embed data/language_support.json
+//go:generate python3 scripts/gen_language_support.py ../translate-shell/include/LanguageData.awk
 var embedded []byte
 
 var (

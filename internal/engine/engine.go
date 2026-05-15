@@ -2,6 +2,10 @@ package engine
 
 import "context"
 
+// MaxReadBody caps HTTP response body reads across all engines to prevent
+// unbounded memory consumption from malicious or buggy upstream servers.
+const MaxReadBody = 4 << 20
+
 // Capabilities describes optional engine features (CLI help and future flags).
 type Capabilities struct {
 	SupportsTTS        bool

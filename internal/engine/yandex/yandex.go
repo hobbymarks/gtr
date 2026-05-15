@@ -1,7 +1,6 @@
 package yandex
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -16,8 +15,6 @@ import (
 	"github.com/hobbymarks/gtr/internal/engine"
 	"github.com/hobbymarks/gtr/internal/httpx"
 )
-
-const maxReadBody = 4 << 20
 
 const translateBase = "https://translate.yandex.net"
 
@@ -76,12 +73,12 @@ func (e *Engine) translatePost(ctx context.Context, in engine.TranslateInput) (b
 	}
 	defer resp.Body.Close()
 
-	body, err = io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
+	body, err = io.ReadAll(io.LimitReader(resp.Body, engine.MaxReadBody+1))
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("yandex: read body: %w", err)
 	}
-	if int64(len(body)) > maxReadBody {
-		return nil, resp.StatusCode, fmt.Errorf("yandex: response body exceeds %d bytes", maxReadBody)
+	if int64(len(body)) > engine.MaxReadBody {
+		return nil, resp.StatusCode, fmt.Errorf("yandex: response body exceeds %d bytes", engine.MaxReadBody)
 	}
 	return body, resp.StatusCode, nil
 }
@@ -100,7 +97,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		return engine.TranslateOutput{}, fmt.Errorf("yandex: rate limiting is in effect (HTTP %d)", statusCode)
 	}
 	if statusCode >= 400 {
-		return engine.TranslateOutput{}, fmt.Errorf("yandex: HTTP %d: %s", statusCode, truncate(body, 200))
+		return engine.TranslateOutput{}, fmt.Errorf("yandex: HTTP %d: %s", statusCode, httpx.Truncate(body, 200))
 	}
 
 	text, err := parseTranslateJSON(body)
@@ -111,14 +108,6 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		text = strings.TrimSpace(text)
 	}
 	return engine.TranslateOutput{Text: text}, nil
-}
-
-func truncate(b []byte, n int) string {
-	s := string(bytes.TrimSpace(b))
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }
 
 func stripDigraph(code string) string {
