@@ -298,22 +298,40 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 				Text       string `json:"text"`
 				Dictionary string `json:"dictionary,omitempty"`
 			}
-			var jsonResults []jsonSingle
+			type result struct {
+				idx int
+				out engine.TranslateOutput
+				err error
+			}
+			ch := make(chan result, len(allTargets))
 			for i, tl := range allTargets {
-				outi, err := eng.Translate(cmd.Context(), engine.TranslateInput{
-					Text:          text,
-					Source:        source,
-					Target:        tl,
-					HostLang:      hostLang,
-					Brief:         brief,
-					NoAutocorrect: noAutocorrect,
-					Debug:         debug,
-					Dump:          dump,
-					Dictionary:    dictionary,
-				})
-				if err != nil {
-					return err
+				go func(idx int, tl string) {
+					outi, err := eng.Translate(cmd.Context(), engine.TranslateInput{
+						Text:          text,
+						Source:        source,
+						Target:        tl,
+						HostLang:      hostLang,
+						Brief:         brief,
+						NoAutocorrect: noAutocorrect,
+						Debug:         debug,
+						Dump:          dump,
+						Dictionary:    dictionary,
+					})
+					ch <- result{idx: idx, out: outi, err: err}
+				}(i, tl)
+			}
+			results := make([]result, len(allTargets))
+			for i := 0; i < len(allTargets); i++ {
+				r := <-ch
+				if r.err != nil {
+					return r.err
 				}
+				results[r.idx] = r
+			}
+			var jsonResults []jsonSingle
+			for i, r := range results {
+				tl := allTargets[i]
+				outi := r.out
 				if jsonOut {
 					js := jsonSingle{
 						Source: source,
@@ -332,30 +350,31 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 					continue
 				}
 				if len(allTargets) == 1 {
-					_, err = fmt.Fprintf(out, "%s\n", Green(outi.Text))
+					if _, werr := fmt.Fprintf(out, "%s\n", Green(outi.Text)); werr != nil {
+						return werr
+					}
 				} else {
 					if i > 0 {
-						if _, err = fmt.Fprintln(out); err != nil {
-							return err
+						if _, werr := fmt.Fprintln(out); werr != nil {
+							return werr
 						}
 					}
-					_, err = fmt.Fprintf(out, "[%s]\n%s", Cyan(tl), Green(outi.Text))
-				}
-				if err != nil {
-					return err
+					if _, werr := fmt.Fprintf(out, "[%s]\n%s", Cyan(tl), Green(outi.Text)); werr != nil {
+						return werr
+					}
 				}
 				if outi.Dictionary != "" {
-					if _, err = fmt.Fprintf(out, "\n%s\n%s\n", Yellow("--"), outi.Dictionary); err != nil {
-						return err
+					if _, werr := fmt.Fprintf(out, "\n%s\n%s\n", Yellow("--"), outi.Dictionary); werr != nil {
+						return werr
 					}
 				}
 				if speak {
-					u, err := googleTTSURLForEngine(eng, inForTTS, outi.Text)
-					if err != nil {
-						return err
+					u, werr := googleTTSURLForEngine(eng, inForTTS, outi.Text)
+					if werr != nil {
+						return werr
 					}
-					if err := playGoogleTTS(cmd.Context(), u); err != nil {
-						return err
+					if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
+						return werr
 					}
 				}
 			}
@@ -365,9 +384,9 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 				return enc.Encode(jsonResults)
 			}
 			if len(allTargets) > 1 {
-				_, err = fmt.Fprintln(out)
+				_, _ = fmt.Fprintln(out)
 			}
-			return err
+			return nil
 		},
 	}
 

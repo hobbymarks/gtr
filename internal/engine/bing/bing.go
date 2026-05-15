@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hobbymarks/gtr/internal/engine"
 	"github.com/hobbymarks/gtr/internal/httpx"
@@ -19,17 +20,26 @@ import (
 
 const translateBase = "https://www.bing.com"
 
+const setupCacheTTL = 5 * time.Minute
+
+type setupCacheEntry struct {
+	cookie, ig, iid, token, key string
+	expires                     time.Time
+}
+
 // Engine uses Bing Web Translator (translate-shell parity: www.bing.com).
 type Engine struct {
-	HTTP *http.Client
-	mu   sync.Mutex
+	HTTP       *http.Client
+	mu         sync.Mutex
+	setupCache map[string]*setupCacheEntry
+	cacheMu    sync.Mutex
 }
 
 func New(c *http.Client) *Engine {
 	if c == nil {
 		c = httpx.NewClient()
 	}
-	return &Engine{HTTP: c}
+	return &Engine{HTTP: c, setupCache: make(map[string]*setupCacheEntry)}
 }
 
 func (e *Engine) Name() string { return "bing" }
@@ -55,7 +65,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 
 // translateRequest performs setup and the translate POST, returning the raw body and HTTP status.
 func (e *Engine) translateRequest(ctx context.Context, origin, text, sl, tl string, debug bool) (body []byte, statusCode int, err error) {
-	cookie, ig, iid, token, key, err := e.setup(ctx, origin)
+	cookie, ig, iid, token, key, err := e.cachedSetup(ctx, origin)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -137,6 +147,33 @@ var (
 	reIID   = regexp.MustCompile(`data-iid="([^"]+)"`)
 	reAbuse = regexp.MustCompile(`params_AbusePreventionHelper\s*=\s*(\[[^\]]+\]);`)
 )
+
+func (e *Engine) cachedSetup(ctx context.Context, origin string) (cookie, ig, iid, token, key string, err error) {
+	e.cacheMu.Lock()
+	if entry, ok := e.setupCache[origin]; ok && time.Now().Before(entry.expires) {
+		cookie, ig, iid, token, key = entry.cookie, entry.ig, entry.iid, entry.token, entry.key
+		e.cacheMu.Unlock()
+		return
+	}
+	e.cacheMu.Unlock()
+
+	cookie, ig, iid, token, key, err = e.setup(ctx, origin)
+	if err != nil {
+		return "", "", "", "", "", err
+	}
+
+	e.cacheMu.Lock()
+	e.setupCache[origin] = &setupCacheEntry{
+		cookie:  cookie,
+		ig:      ig,
+		iid:     iid,
+		token:   token,
+		key:     key,
+		expires: time.Now().Add(setupCacheTTL),
+	}
+	e.cacheMu.Unlock()
+	return
+}
 
 func (e *Engine) setup(ctx context.Context, origin string) (cookie, ig, iid, token, key string, err error) {
 	pageURL := origin + "/translator"
