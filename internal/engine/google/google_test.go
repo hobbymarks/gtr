@@ -32,7 +32,7 @@ func TestParseTranslateSingleResponse_golden(t *testing.T) {
 			if err := json.Unmarshal(raw, &doc); err != nil {
 				t.Fatal(err)
 			}
-			got, err := ParseTranslateSingleResponse(doc.Response)
+			got, _, err := ParseTranslateSingleResponse(doc.Response)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -66,7 +66,7 @@ func TestParseTranslateSingleResponse_errors(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseTranslateSingleResponse([]byte(tc.raw))
+			_, _, err := ParseTranslateSingleResponse([]byte(tc.raw))
 			if err == nil {
 				t.Fatal("expected error")
 			}

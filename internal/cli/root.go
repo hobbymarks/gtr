@@ -296,6 +296,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 				Source     string `json:"source"`
 				Target     string `json:"target"`
 				Text       string `json:"text"`
+				Phonetic   string `json:"phonetic,omitempty"`
 				Dictionary string `json:"dictionary,omitempty"`
 			}
 			type result struct {
@@ -334,9 +335,10 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 				outi := r.out
 				if jsonOut {
 					js := jsonSingle{
-						Source: source,
-						Target: tl,
-						Text:   outi.Text,
+						Source:   source,
+						Target:   tl,
+						Text:     outi.Text,
+						Phonetic: outi.Phonetic,
 					}
 					if outi.Dictionary != "" {
 						js.Dictionary = outi.Dictionary
@@ -365,6 +367,11 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 				}
 				if outi.Dictionary != "" {
 					if _, werr := fmt.Fprintf(out, "\n%s\n%s\n", Yellow("--"), outi.Dictionary); werr != nil {
+						return werr
+					}
+				}
+				if outi.Phonetic != "" {
+					if _, werr := fmt.Fprintf(out, "(%s)\n", Cyan(outi.Phonetic)); werr != nil {
 						return werr
 					}
 				}

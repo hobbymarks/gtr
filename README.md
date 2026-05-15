@@ -95,6 +95,7 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 ./gtr -e goo -t fr hi             # fuzzy prefix -> google
 ./gtr -e spell -s en 'some text'          # aspell or hunspell (target defaults to source)
 ./gtr -e google -d -t de 'Wanderlust'     # translation + dictionary JSON segments when present
+./gtr -e google -t zh-CN hello           # phonetic (pinyin) shown when available
 ./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
 ./gtr -e google -play -t de 'hello'      # same as --speak (translate-shell-style flag)
 ./gtr --shell -e auto -t fr               # line REPL; :help for commands, exit/quit to stop
@@ -141,6 +142,9 @@ Link a version string at build time:
 
 ```bash
 go build -ldflags "-X main.version=0.1.0" -o gtr ./cmd/gtr
+
+# Include short commit hash (recommended):
+go build -ldflags "-X main.version=0.1.0 -X main.commit=$(git rev-parse --short HEAD)" -o gtr ./cmd/gtr
 ```
 
 ## Environment

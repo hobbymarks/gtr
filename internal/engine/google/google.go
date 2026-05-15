@@ -70,14 +70,15 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		return engine.TranslateOutput{}, fmt.Errorf("google: HTTP %d: %s", resp.StatusCode, httpx.Truncate(body, 200))
 	}
 
-	text, err := ParseTranslateSingleResponse(body)
+	text, phonetic, err := ParseTranslateSingleResponse(body)
 	if err != nil {
 		return engine.TranslateOutput{}, err
 	}
 	if in.Brief {
 		text = strings.TrimSpace(text)
+		phonetic = strings.TrimSpace(phonetic)
 	}
-	out := engine.TranslateOutput{Text: text}
+	out := engine.TranslateOutput{Text: text, Phonetic: phonetic}
 	if in.Dictionary {
 		if d, err := FormatDictionaryPayload(body); err == nil && d != "" {
 			out.Dictionary = d
@@ -111,36 +112,36 @@ func buildSingleRequestURL(text, sl, tl, hl string, noAutocorrect bool) (string,
 	return base.String(), nil
 }
 
-// ParseTranslateSingleResponse extracts the primary translation from a
-// translate_a/single JSON payload (same logical paths as translate-shell
-// flattened indices for sentence translations).
-func ParseTranslateSingleResponse(raw []byte) (string, error) {
+// ParseTranslateSingleResponse extracts the primary translation and phonetic
+// romanization from a translate_a/single JSON payload (same logical paths as
+// translate-shell flattened indices for sentence translations).
+func ParseTranslateSingleResponse(raw []byte) (text string, phonetic string, err error) {
 	raw = bytes.TrimSpace(raw)
 	if len(raw) == 0 {
-		return "", fmt.Errorf("google: empty response body")
+		return "", "", fmt.Errorf("google: empty response body")
 	}
 	var root interface{}
 	if err := json.Unmarshal(raw, &root); err != nil {
-		return "", fmt.Errorf("google: invalid JSON: %w", err)
+		return "", "", fmt.Errorf("google: invalid JSON: %w", err)
 	}
-	out, err := joinSentenceTranslations(root)
+	out, phon, err := joinSentenceTranslations(root)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if strings.TrimSpace(out) == "" {
-		return "", fmt.Errorf("google: could not parse translation from response")
+		return "", "", fmt.Errorf("google: could not parse translation from response")
 	}
-	return out, nil
+	return out, phon, nil
 }
 
-func joinSentenceTranslations(v interface{}) (string, error) {
+func joinSentenceTranslations(v interface{}) (text string, phonetic string, err error) {
 	root, ok := v.([]interface{})
 	if !ok || len(root) == 0 {
-		return "", fmt.Errorf("google: unexpected JSON root shape")
+		return "", "", fmt.Errorf("google: unexpected JSON root shape")
 	}
 	sentences, ok := root[0].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("google: missing sentence list at index 0")
+		return "", "", fmt.Errorf("google: missing sentence list at index 0")
 	}
 	var b strings.Builder
 	for _, s := range sentences {
@@ -154,5 +155,14 @@ func joinSentenceTranslations(v interface{}) (string, error) {
 		}
 		b.WriteString(t)
 	}
-	return b.String(), nil
+	text = b.String()
+
+	if len(sentences) >= 2 {
+		if seg, ok := sentences[1].([]interface{}); ok && len(seg) > 2 {
+			if p, ok := seg[2].(string); ok && strings.TrimSpace(p) != "" {
+				phonetic = p
+			}
+		}
+	}
+	return text, phonetic, nil
 }

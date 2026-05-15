@@ -33,6 +33,9 @@ type TranslateOutput struct {
 	Text string
 	// Dictionary holds auxiliary payload (definitions / alternatives) when requested.
 	Dictionary string
+	// Phonetic holds romanization / transliteration of the translated text (e.g. pinyin),
+	// populated by engines that support it (Google with dt=rm).
+	Phonetic string
 }
 
 // Engine performs translation for a single backend (google, bing, etc.).
