@@ -1,3 +1,4 @@
+// Package main is the entry point for the gtr multi-engine translation CLI.
 package main
 
 import (

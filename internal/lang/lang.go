@@ -1,3 +1,5 @@
+// Package lang embeds translate-shell language support metadata and provides
+// canonical resolution, engine support queries, and language code validation for gtr.
 package lang
 
 import (

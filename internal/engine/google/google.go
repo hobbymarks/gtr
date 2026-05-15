@@ -1,3 +1,5 @@
+// Package google implements the Google Translate engine for gtr,
+// using the translate_a/single public endpoint with phonetic and dictionary support.
 package google
 
 import (

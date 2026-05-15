@@ -1,3 +1,5 @@
+// Package config provides default engine selection, config file (~/.gtrrc)
+// parsing, and environment variable overrides for gtr.
 package config
 
 import (

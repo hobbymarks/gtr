@@ -1,3 +1,5 @@
+// Package auto implements the meta-engine router that delegates to google
+// or bing based on translate-shell language support tables.
 package auto
 
 import (

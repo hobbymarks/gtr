@@ -1,3 +1,4 @@
+// Package apertium implements the Apertium APy translation engine for gtr.
 package apertium
 
 import (

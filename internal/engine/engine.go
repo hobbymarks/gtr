@@ -1,3 +1,5 @@
+// Package engine defines the core Engine, Factory, and LanguageIdentifier
+// interfaces, plus the thread-safe plugin registry for gtr translation backends.
 package engine
 
 import "context"

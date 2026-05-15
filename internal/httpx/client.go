@@ -1,3 +1,5 @@
+// Package httpx provides shared HTTP client, transport, retry, and utility
+// functions for all gtr translation engines.
 package httpx
 
 import (

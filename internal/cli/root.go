@@ -1,3 +1,5 @@
+// Package cli implements the cobra command tree, I/O paths, shell REPL,
+// TTS playback, pager integration, and color output for gtr.
 package cli
 
 import (

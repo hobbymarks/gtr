@@ -1,3 +1,5 @@
+// Package spell implements local ispell-protocol spell checkers (aspell,
+// hunspell) as translation engines for gtr.
 package spell
 
 import (
