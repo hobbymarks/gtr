@@ -7,6 +7,6 @@ import (
 
 func init() {
 	engine.Register("bing", func() (engine.Engine, error) {
-		return New(httpx.NewClient()), nil
+		return New(httpx.NewSharedClient()), nil
 	}, engine.Capabilities{SupportsTTS: false, SupportsDictionary: true})
 }

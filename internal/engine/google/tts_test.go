@@ -47,3 +47,26 @@ func TestBuildTTSURL_specialChars(t *testing.T) {
 		t.Fatalf("missing target: %s", u)
 	}
 }
+
+func TestBuildTTSURL_truncation(t *testing.T) {
+	long := strings.Repeat("x", maxTTSTextLen+100)
+	u, err := BuildTTSURL(long, "fr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(u) < len(long) {
+		return
+	}
+	t.Fatal("expected truncation")
+}
+
+func TestBuildTTSURL_preservesShort(t *testing.T) {
+	short := "hello"
+	u, err := BuildTTSURL(short, "fr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(u, "q=hello") {
+		t.Fatalf("text not preserved: %s", u)
+	}
+}

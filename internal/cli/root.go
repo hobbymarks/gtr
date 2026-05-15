@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/hobbymarks/gtr/internal/config"
 	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/lang"
 	"golang.org/x/term"
 )
 
@@ -100,6 +101,13 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 			hostLang = strings.TrimSpace(hostLang)
 			if hostLang == "" {
 				hostLang = "en"
+			}
+
+			if !lang.IsKnownLanguage(source) {
+				return fmt.Errorf("unknown source language code %q", source)
+			}
+			if !lang.IsKnownLanguage(hostLang) {
+				return fmt.Errorf("unknown host language code %q", hostLang)
 			}
 
 			sourceChanged := cmd.Flags().Lookup("source").Changed
@@ -255,6 +263,11 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 			}
 
 			allTargets := append([]string{target}, extraTargets...)
+			for _, tl := range allTargets {
+				if !lang.IsKnownLanguage(tl) {
+					return fmt.Errorf("unknown target language code %q", tl)
+				}
+			}
 			for i, tl := range allTargets {
 				outi, err := eng.Translate(cmd.Context(), engine.TranslateInput{
 					Text:          text,

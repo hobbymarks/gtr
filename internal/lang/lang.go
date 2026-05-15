@@ -104,3 +104,13 @@ func IsBingSupported(code string) bool {
 	ent, ok := s.Support[c]
 	return ok && ent.Bing
 }
+
+// IsKnownLanguage returns true if code resolves to a known language code
+// in the embedded language support data. "auto" always returns true.
+func IsKnownLanguage(code string) bool {
+	code = strings.TrimSpace(code)
+	if code == "" || code == "auto" {
+		return true
+	}
+	return ResolveCanonical(code) != ""
+}
