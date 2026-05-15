@@ -20,7 +20,7 @@ func FormatDictionaryPayload(raw []byte) (string, error) {
 		return "", fmt.Errorf("google: invalid JSON: %w", err)
 	}
 	var b strings.Builder
-	for _, idx := range []int{1, 5, 11, 12} {
+	for _, idx := range dictIndices {
 		if len(root) <= idx || root[idx] == nil {
 			continue
 		}
@@ -35,3 +35,7 @@ func FormatDictionaryPayload(raw []byte) (string, error) {
 	}
 	return strings.TrimSpace(b.String()), nil
 }
+
+// dictIndices names the array positions inside translate_a/single JSON that
+// contain auxiliary payload segments (definitions, alternatives, synonyms).
+var dictIndices = []int{1, 5, 11, 12}

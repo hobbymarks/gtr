@@ -41,12 +41,12 @@ func (e *Engine) IdentifyLanguage(ctx context.Context, text, hostLang string) (s
 		return "", fmt.Errorf("google: identify: %w", err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, engine.MaxReadBody+1))
 	if err != nil {
 		return "", fmt.Errorf("google: read body: %w", err)
 	}
-	if int64(len(body)) > maxReadBody {
-		return "", fmt.Errorf("google: response body exceeds %d bytes", maxReadBody)
+	if int64(len(body)) > engine.MaxReadBody {
+		return "", fmt.Errorf("google: response body exceeds %d bytes", engine.MaxReadBody)
 	}
 	if resp.StatusCode >= 400 {
 		return "", fmt.Errorf("google: identify HTTP %d", resp.StatusCode)

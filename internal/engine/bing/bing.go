@@ -17,7 +17,7 @@ import (
 	"github.com/hobbymarks/gtr/internal/httpx"
 )
 
-const maxReadBody = 4 << 20
+const translateBase = "https://www.bing.com"
 
 // Engine uses Bing Web Translator (translate-shell parity: www.bing.com).
 type Engine struct {
@@ -38,7 +38,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	hosts := []string{"https://www.bing.com", "https://cn.bing.com"}
+	hosts := []string{translateBase, "https://cn.bing.com"}
 	var errs []error
 	for _, origin := range hosts {
 		out, err := e.translateOnHost(ctx, origin, in)
@@ -91,13 +91,13 @@ func (e *Engine) translateRequest(ctx context.Context, origin, text, sl, tl stri
 	}
 	defer resp.Body.Close()
 
-	limited := io.LimitReader(resp.Body, maxReadBody+1)
+	limited := io.LimitReader(resp.Body, engine.MaxReadBody+1)
 	body, err = io.ReadAll(limited)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("bing: read body: %w", err)
 	}
-	if int64(len(body)) > maxReadBody {
-		return nil, resp.StatusCode, fmt.Errorf("bing: response body exceeds %d bytes", maxReadBody)
+	if int64(len(body)) > engine.MaxReadBody {
+		return nil, resp.StatusCode, fmt.Errorf("bing: response body exceeds %d bytes", engine.MaxReadBody)
 	}
 	return body, resp.StatusCode, nil
 }
@@ -116,7 +116,7 @@ func (e *Engine) translateOnHost(ctx context.Context, origin string, in engine.T
 		return engine.TranslateOutput{}, fmt.Errorf("bing: rate limiting is in effect (HTTP %d)", statusCode)
 	}
 	if statusCode >= 400 {
-		return engine.TranslateOutput{}, fmt.Errorf("bing: HTTP %d: %s", statusCode, truncate(body, 200))
+		return engine.TranslateOutput{}, fmt.Errorf("bing: HTTP %d: %s", statusCode, httpx.Truncate(body, 200))
 	}
 	if len(bytes.TrimSpace(body)) == 0 {
 		return engine.TranslateOutput{}, fmt.Errorf("bing: empty response body")
@@ -130,14 +130,6 @@ func (e *Engine) translateOnHost(ctx context.Context, origin string, in engine.T
 		text = strings.TrimSpace(text)
 	}
 	return engine.TranslateOutput{Text: text}, nil
-}
-
-func truncate(b []byte, n int) string {
-	s := string(bytes.TrimSpace(b))
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }
 
 var (
@@ -175,12 +167,12 @@ func (e *Engine) setup(ctx context.Context, origin string) (cookie, ig, iid, tok
 	}
 	cookie = strings.Join(setCookies, "; ")
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, engine.MaxReadBody+1))
 	if err != nil {
 		return "", "", "", "", "", err
 	}
-	if int64(len(body)) > maxReadBody {
-		return "", "", "", "", "", fmt.Errorf("bing setup GET: response body exceeds %d bytes", maxReadBody)
+	if int64(len(body)) > engine.MaxReadBody {
+		return "", "", "", "", "", fmt.Errorf("bing setup GET: response body exceeds %d bytes", engine.MaxReadBody)
 	}
 	html := string(body)
 

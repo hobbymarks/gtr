@@ -1,7 +1,6 @@
 package apertium
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,8 +13,6 @@ import (
 	"github.com/hobbymarks/gtr/internal/engine"
 	"github.com/hobbymarks/gtr/internal/httpx"
 )
-
-const maxReadBody = 4 << 20
 
 const translateBase = "https://www.apertium.org"
 
@@ -65,12 +62,12 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, engine.MaxReadBody+1))
 	if err != nil {
 		return engine.TranslateOutput{}, fmt.Errorf("apertium: read body: %w", err)
 	}
-	if int64(len(body)) > maxReadBody {
-		return engine.TranslateOutput{}, fmt.Errorf("apertium: response body exceeds %d bytes", maxReadBody)
+	if int64(len(body)) > engine.MaxReadBody {
+		return engine.TranslateOutput{}, fmt.Errorf("apertium: response body exceeds %d bytes", engine.MaxReadBody)
 	}
 
 	if in.Dump {
@@ -81,7 +78,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		return engine.TranslateOutput{}, fmt.Errorf("apertium: rate limiting is in effect (HTTP %d)", resp.StatusCode)
 	}
 	if resp.StatusCode >= 400 {
-		return engine.TranslateOutput{}, fmt.Errorf("apertium: HTTP %d: %s", resp.StatusCode, truncate(body, 200))
+		return engine.TranslateOutput{}, fmt.Errorf("apertium: HTTP %d: %s", resp.StatusCode, httpx.Truncate(body, 200))
 	}
 
 	text, err := parseTranslateBody(body)
@@ -92,14 +89,6 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		text = strings.TrimSpace(text)
 	}
 	return engine.TranslateOutput{Text: text}, nil
-}
-
-func truncate(b []byte, n int) string {
-	s := string(bytes.TrimSpace(b))
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }
 
 func parseTranslateBody(raw []byte) (string, error) {

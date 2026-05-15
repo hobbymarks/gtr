@@ -15,9 +15,6 @@ import (
 	"github.com/hobbymarks/gtr/internal/httpx"
 )
 
-// maxReadBody caps response size for untrusted servers (cross-cutting safety).
-const maxReadBody = 4 << 20
-
 // Engine calls Google Translate web-style endpoint (translate-shell parity: client=gtx).
 type Engine struct {
 	HTTP *http.Client
@@ -53,13 +50,13 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 	}
 	defer resp.Body.Close()
 
-	limited := io.LimitReader(resp.Body, maxReadBody+1)
+	limited := io.LimitReader(resp.Body, engine.MaxReadBody+1)
 	body, err := io.ReadAll(limited)
 	if err != nil {
 		return engine.TranslateOutput{}, fmt.Errorf("google: read body: %w", err)
 	}
-	if int64(len(body)) > maxReadBody {
-		return engine.TranslateOutput{}, fmt.Errorf("google: response body exceeds %d bytes", maxReadBody)
+	if int64(len(body)) > engine.MaxReadBody {
+		return engine.TranslateOutput{}, fmt.Errorf("google: response body exceeds %d bytes", engine.MaxReadBody)
 	}
 
 	if in.Dump {
@@ -70,7 +67,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		return engine.TranslateOutput{}, fmt.Errorf("google: rate limiting is in effect (HTTP %d)", resp.StatusCode)
 	}
 	if resp.StatusCode >= 400 {
-		return engine.TranslateOutput{}, fmt.Errorf("google: HTTP %d: %s", resp.StatusCode, truncateForError(body, 200))
+		return engine.TranslateOutput{}, fmt.Errorf("google: HTTP %d: %s", resp.StatusCode, httpx.Truncate(body, 200))
 	}
 
 	text, err := ParseTranslateSingleResponse(body)
@@ -87,14 +84,6 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 		}
 	}
 	return out, nil
-}
-
-func truncateForError(b []byte, n int) string {
-	s := string(bytes.TrimSpace(b))
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }
 
 func buildSingleRequestURL(text, sl, tl, hl string, noAutocorrect bool) (string, error) {
