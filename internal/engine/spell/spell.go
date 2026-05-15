@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/engine"
 )
 
 // Mode selects which external checker binary to use.

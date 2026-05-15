@@ -1,6 +1,6 @@
 package spell
 
-import "github.com/ueki/gtr/internal/engine"
+import "github.com/hobbymarks/gtr/internal/engine"
 
 func init() {
 	caps := engine.Capabilities{SupportsTTS: false, SupportsDictionary: false}

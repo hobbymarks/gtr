@@ -13,8 +13,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
-	"github.com/ueki/gtr/internal/httpx"
+	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/httpx"
 )
 
 const maxReadBody = 4 << 20

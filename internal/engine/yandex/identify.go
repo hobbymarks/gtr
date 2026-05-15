@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/engine"
 )
 
 // IdentifyLanguage requests auto→English translation and reads the detected

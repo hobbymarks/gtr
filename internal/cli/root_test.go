@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ueki/gtr/internal/engine"
-	_ "github.com/ueki/gtr/internal/engine/apertium"
-	_ "github.com/ueki/gtr/internal/engine/auto"
-	_ "github.com/ueki/gtr/internal/engine/bing"
-	_ "github.com/ueki/gtr/internal/engine/google"
-	_ "github.com/ueki/gtr/internal/engine/spell"
-	_ "github.com/ueki/gtr/internal/engine/yandex"
+	"github.com/hobbymarks/gtr/internal/engine"
+	_ "github.com/hobbymarks/gtr/internal/engine/apertium"
+	_ "github.com/hobbymarks/gtr/internal/engine/auto"
+	_ "github.com/hobbymarks/gtr/internal/engine/bing"
+	_ "github.com/hobbymarks/gtr/internal/engine/google"
+	_ "github.com/hobbymarks/gtr/internal/engine/spell"
+	_ "github.com/hobbymarks/gtr/internal/engine/yandex"
 )
 
 func TestVersionFlag_V(t *testing.T) {
