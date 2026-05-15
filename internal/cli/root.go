@@ -2,15 +2,19 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/hobbymarks/gtr/internal/config"
 	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/httpx"
 	"github.com/hobbymarks/gtr/internal/lang"
 	"golang.org/x/term"
 )
@@ -48,6 +52,9 @@ func newRoot() *cobra.Command {
 		speak         bool
 		view          bool
 		shell         bool
+		timeoutSec    int
+		jsonOut       bool
+		noColor       bool
 	)
 
 	cmd := &cobra.Command{
@@ -91,6 +98,19 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 			engineName = strings.TrimSpace(strings.ToLower(engineName))
 			if engineName == "" {
 				return errors.New("engine name must not be empty")
+			}
+
+			initColorOut(noColor)
+
+			if timeoutSec == 0 {
+				if s := strings.TrimSpace(os.Getenv("GTR_TIMEOUT")); s != "" {
+					if n, err := strconv.Atoi(s); err == nil && n > 0 {
+						timeoutSec = n
+					}
+				}
+			}
+			if timeoutSec > 0 {
+				httpx.SharedClientTimeout = time.Duration(timeoutSec) * time.Second
 			}
 
 			target = strings.TrimSpace(target)
@@ -169,6 +189,10 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 			eng, engErr := factory()
 			if engErr != nil {
 				return fmt.Errorf("engine %q: %w", canon, engErr)
+			}
+
+			if !shell && target == "" && !targetChanged {
+				target = config.DefaultTarget()
 			}
 
 			if isSpellEngine(canon) && !identify && !shell && strings.TrimSpace(target) == "" {
@@ -259,7 +283,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 					Dump:          dump,
 					Dictionary:    dictionary,
 				}
-				return RunShell(cmd, eng, base)
+				return RunShell(cmd, eng, base, canon)
 			}
 
 			allTargets := append([]string{target}, extraTargets...)
@@ -268,6 +292,13 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 					return fmt.Errorf("unknown target language code %q", tl)
 				}
 			}
+			type jsonSingle struct {
+				Source     string `json:"source"`
+				Target     string `json:"target"`
+				Text       string `json:"text"`
+				Dictionary string `json:"dictionary,omitempty"`
+			}
+			var jsonResults []jsonSingle
 			for i, tl := range allTargets {
 				outi, err := eng.Translate(cmd.Context(), engine.TranslateInput{
 					Text:          text,
@@ -283,24 +314,38 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 				if err != nil {
 					return err
 				}
+				if jsonOut {
+					js := jsonSingle{
+						Source: source,
+						Target: tl,
+						Text:   outi.Text,
+					}
+					if outi.Dictionary != "" {
+						js.Dictionary = outi.Dictionary
+					}
+					jsonResults = append(jsonResults, js)
+				}
 				inForTTS := engine.TranslateInput{
 					Text: text, Source: source, Target: tl, HostLang: hostLang,
 				}
+				if jsonOut {
+					continue
+				}
 				if len(allTargets) == 1 {
-					_, err = fmt.Fprintf(out, "%s\n", outi.Text)
+					_, err = fmt.Fprintf(out, "%s\n", Green(outi.Text))
 				} else {
 					if i > 0 {
 						if _, err = fmt.Fprintln(out); err != nil {
 							return err
 						}
 					}
-					_, err = fmt.Fprintf(out, "[%s]\n%s", tl, outi.Text)
+					_, err = fmt.Fprintf(out, "[%s]\n%s", Cyan(tl), Green(outi.Text))
 				}
 				if err != nil {
 					return err
 				}
 				if outi.Dictionary != "" {
-					if _, err = fmt.Fprintf(out, "\n--\n%s\n", outi.Dictionary); err != nil {
+					if _, err = fmt.Fprintf(out, "\n%s\n%s\n", Yellow("--"), outi.Dictionary); err != nil {
 						return err
 					}
 				}
@@ -313,6 +358,11 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 						return err
 					}
 				}
+			}
+			if jsonOut {
+				enc := json.NewEncoder(out)
+				enc.SetIndent("", "  ")
+				return enc.Encode(jsonResults)
 			}
 			if len(allTargets) > 1 {
 				_, err = fmt.Fprintln(out)
@@ -341,6 +391,9 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak: play translated text via Google TTS (translate-shell-style)")
 	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (default less -R, or more on Windows)")
 	cmd.Flags().BoolVar(&shell, "shell", false, "Interactive line-at-a-time translation on stdin (exit/quit to leave)")
+	cmd.Flags().IntVar(&timeoutSec, "timeout", 0, "HTTP request timeout in seconds (default 30; also GTR_TIMEOUT env)")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output structured JSON instead of plain text")
+	cmd.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI color output")
 
 	return cmd
 }
