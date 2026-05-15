@@ -39,18 +39,18 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 	defer e.mu.Unlock()
 
 	hosts := []string{"https://www.bing.com", "https://cn.bing.com"}
-	var lastErr error
+	var errs []error
 	for _, origin := range hosts {
 		out, err := e.translateOnHost(ctx, origin, in)
 		if err == nil {
 			return out, nil
 		}
-		lastErr = err
+		errs = append(errs, fmt.Errorf("%s: %w", origin, err))
 	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("bing: no host succeeded")
+	if len(errs) == 0 {
+		return engine.TranslateOutput{}, fmt.Errorf("bing: no host succeeded")
 	}
-	return engine.TranslateOutput{}, lastErr
+	return engine.TranslateOutput{}, fmt.Errorf("bing: all hosts failed: %v", errs)
 }
 
 // translateRequest performs setup and the translate POST, returning the raw body and HTTP status.
@@ -161,6 +161,12 @@ func (e *Engine) setup(ctx context.Context, origin string) (cookie, ig, iid, tok
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 400 {
+		limitedErr := io.LimitReader(resp.Body, 200)
+		errBody, _ := io.ReadAll(limitedErr)
+		return "", "", "", "", "", fmt.Errorf("bing setup GET: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(errBody)))
+	}
+
 	var setCookies []string
 	for _, c := range resp.Cookies() {
 		if c.Name != "" {
@@ -172,6 +178,9 @@ func (e *Engine) setup(ctx context.Context, origin string) (cookie, ig, iid, tok
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxReadBody+1))
 	if err != nil {
 		return "", "", "", "", "", err
+	}
+	if int64(len(body)) > maxReadBody {
+		return "", "", "", "", "", fmt.Errorf("bing setup GET: response body exceeds %d bytes", maxReadBody)
 	}
 	html := string(body)
 
