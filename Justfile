@@ -8,6 +8,9 @@
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
+version := `git describe --tags --always --dirty 2>/dev/null || echo dev`
+commit  := `git rev-parse --short HEAD 2>/dev/null || echo unknown`
+
 # Show available recipes
 default:
     @just --list
@@ -23,7 +26,7 @@ smoke: build
     ./gtr --help >/dev/null
 
 build binary="gtr":
-    go build -o "{{ binary }}" ./cmd/gtr
+    go build -ldflags "-X main.version={{ version }} -X main.commit={{ commit }}" -o "{{ binary }}" ./cmd/gtr
 
 run *args:
     go run ./cmd/gtr {{ args }}
