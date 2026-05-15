@@ -1,3 +1,5 @@
+// Package yandex implements the Yandex Translate engine for gtr,
+// using the mobile-style JSON API (srv=android, ucid per process).
 package yandex
 
 import (

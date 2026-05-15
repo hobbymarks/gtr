@@ -1,3 +1,5 @@
+// Package bing implements the Bing Web Translator engine for gtr,
+// using HTML scraping for setup tokens and the ttranslatev3 POST endpoint.
 package bing
 
 import (
