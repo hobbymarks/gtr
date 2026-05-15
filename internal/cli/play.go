@@ -71,7 +71,7 @@ func playAudioFile(ctx context.Context, path string) error {
 		candidates = append([][]string{{"afplay", path}}, candidates...)
 	}
 	if runtime.GOOS == "windows" {
-		return exec.CommandContext(ctx, "cmd", "/c", "start", "", path).Run()
+		return exec.CommandContext(ctx, "cmd", "/c", "start", "", "\""+path+"\"").Run()
 	}
 	var lastErr error
 	for _, argv := range candidates {
