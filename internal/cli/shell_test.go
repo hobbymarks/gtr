@@ -37,7 +37,7 @@ func TestRunShell_basic(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	RunShell(cmd, eng, base)
+	RunShell(cmd, eng, base, "mock")
 
 	output := out.String()
 	if !strings.Contains(output, "gtr> [fr] hello") {
@@ -59,7 +59,7 @@ func TestRunShell_quit(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	RunShell(cmd, eng, base)
+	RunShell(cmd, eng, base, "mock")
 
 	if strings.Contains(out.String(), "[de]") {
 		t.Fatal("should not have translated anything")
@@ -80,7 +80,7 @@ func TestRunShell_emptyLines(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	RunShell(cmd, eng, base)
+	RunShell(cmd, eng, base, "mock")
 
 	if !strings.Contains(out.String(), "[es] hola") {
 		t.Fatalf("unexpected output: %q", out.String())
@@ -101,7 +101,7 @@ func TestRunShell_caseInsensitiveQuit(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	RunShell(cmd, eng, base)
+	RunShell(cmd, eng, base, "mock")
 
 	if strings.Contains(out.String(), "[it]") {
 		t.Fatal("should not have translated anything")

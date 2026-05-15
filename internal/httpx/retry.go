@@ -10,6 +10,9 @@ import (
 var (
 	sharedTransportOnce sync.Once
 	sharedTransport     http.RoundTripper
+	// SharedClientTimeout configures the timeout for NewSharedClient().
+	// Set before the first call to NewSharedClient() (default 30s).
+	SharedClientTimeout = defaultTimeout
 )
 
 func sharedRoundTripper() http.RoundTripper {
@@ -20,10 +23,10 @@ func sharedRoundTripper() http.RoundTripper {
 }
 
 // NewSharedClient returns an http.Client backed by a single shared transport
-// (connection pool) for use across all engines.
+// (connection pool) for use across all engines. Uses SharedClientTimeout.
 func NewSharedClient() *http.Client {
 	return &http.Client{
-		Timeout:   defaultTimeout,
+		Timeout:   SharedClientTimeout,
 		Transport: &retryTransport{base: sharedRoundTripper()},
 	}
 }
