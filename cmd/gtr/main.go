@@ -23,6 +23,9 @@ var (
 
 func versionString() string {
 	if commit != "" {
+		if version == commit || strings.HasPrefix(version, commit+"-") {
+			return version
+		}
 		return version + "-" + commit
 	}
 	if v := strings.TrimSpace(os.Getenv("GTR_VERSION")); v != "" {
