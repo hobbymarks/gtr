@@ -1,6 +1,7 @@
 /gtr
 *.exe
 .DS_Store
+dist/
 
 # Local editor state (this repo may use a nested .vscode Git checkout; use
 # gtr.code-workspace for shared Justfile / extension hints instead).
