@@ -23,7 +23,7 @@ Translator logic and HTTP contracts are traced to translate-shell AWK sources. T
 
 ## Development plan
 
-Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) (synced from translate-shell).
+Phased roadmap (Phase 0–7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) (synced from translate-shell), including **strengths, gaps, security notes, and the risk register**.
 
 **Current status:** Phases **0–7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented in this tree: online engines, `auto`, spell checkers (`spell` / `aspell` / `hunspell`), Google **`-d`** dictionary payload (JSON excerpts), **TTS playback** via **`--speak`** or **`-play`** (Google TTS + local player), **`--view`** (pager), **`--shell`** (line REPL), plus release scaffolding (GoReleaser template, MIT **LICENSE**, upstream check script).
 
