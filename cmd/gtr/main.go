@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"strings"
+
 	"github.com/hobbymarks/gtr/internal/cli"
 
 	_ "github.com/hobbymarks/gtr/internal/engine/apertium" // register apertium
@@ -11,10 +14,24 @@ import (
 	_ "github.com/hobbymarks/gtr/internal/engine/yandex"   // register yandex
 )
 
-// version is overridden via -ldflags '-X main.version=...' at link time.
-var version = "dev"
+var (
+	// version is overridden via -ldflags '-X main.version=...' at link time.
+	version = "dev"
+	// commit is overridden via -ldflags '-X main.commit=...' at link time.
+	commit = ""
+)
+
+func versionString() string {
+	if commit != "" {
+		return version + "-" + commit
+	}
+	if v := strings.TrimSpace(os.Getenv("GTR_VERSION")); v != "" {
+		return v
+	}
+	return version
+}
 
 func main() {
-	cli.Version = version
+	cli.Version = versionString()
 	cli.Main()
 }
