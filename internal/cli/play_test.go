@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -41,6 +42,9 @@ func TestOpenPagerWriter_nonexistent(t *testing.T) {
 }
 
 func TestPlayAudioFile_errorsOnMissingPlayer(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("playAudioFile uses cmd /c start on Windows, not testable without a real audio file")
+	}
 	// On a system with no audio players, this should error.
 	// We check that the function runs without panic and returns a descriptive error.
 	err := playAudioFile(context.Background(), "/dev/null")
