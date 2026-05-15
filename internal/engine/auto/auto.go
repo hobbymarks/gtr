@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ueki/gtr/internal/engine"
-	"github.com/ueki/gtr/internal/lang"
+	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/lang"
 )
 
 // PickBackend mirrors translate-shell Auto.awk routing (Google first, then

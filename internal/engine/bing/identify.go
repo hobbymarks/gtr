@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/engine"
 )
 
 // IdentifyLanguage runs auto-detect to a pivot target and returns Bing's detected source code.

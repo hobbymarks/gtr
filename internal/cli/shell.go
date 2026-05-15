@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/ueki/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/engine"
 )
 
 // RunShell reads lines from stdin, translates each non-empty line, and prints results until EOF.

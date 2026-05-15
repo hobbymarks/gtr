@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
-	"github.com/ueki/gtr/internal/httpx"
+	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/httpx"
 )
 
 // maxReadBody caps response size for untrusted servers (cross-cutting safety).

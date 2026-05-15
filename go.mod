@@ -1,4 +1,4 @@
-module github.com/ueki/gtr
+module github.com/hobbymarks/gtr
 
 go 1.22
 

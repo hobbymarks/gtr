@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/engine"
 )
 
 // IdentifyLanguage performs a minimal auto→pivot translate and returns the

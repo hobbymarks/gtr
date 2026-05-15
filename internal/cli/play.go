@@ -10,10 +10,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ueki/gtr/internal/engine"
-	"github.com/ueki/gtr/internal/engine/auto"
-	"github.com/ueki/gtr/internal/engine/google"
-	"github.com/ueki/gtr/internal/httpx"
+	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/engine/auto"
+	"github.com/hobbymarks/gtr/internal/engine/google"
+	"github.com/hobbymarks/gtr/internal/httpx"
 )
 
 func googleTTSURLForEngine(eng engine.Engine, in engine.TranslateInput, translated string) (string, error) {

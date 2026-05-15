@@ -9,8 +9,8 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/ueki/gtr/internal/config"
-	"github.com/ueki/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/config"
+	"github.com/hobbymarks/gtr/internal/engine"
 	"golang.org/x/term"
 )
 
