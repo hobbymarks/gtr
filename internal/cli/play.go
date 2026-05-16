@@ -12,23 +12,31 @@ import (
 
 	"github.com/hobbymarks/gtr/internal/engine"
 	"github.com/hobbymarks/gtr/internal/engine/auto"
+	"github.com/hobbymarks/gtr/internal/engine/bing"
 	"github.com/hobbymarks/gtr/internal/engine/google"
 	"github.com/hobbymarks/gtr/internal/httpx"
 )
 
-func googleTTSURLForEngine(eng engine.Engine, in engine.TranslateInput, translated string) (string, error) {
+func ttsURLForEngine(eng engine.Engine, in engine.TranslateInput, translated string) (string, error) {
 	switch e := eng.(type) {
 	case *google.Engine:
 		_ = e
 		return google.BuildTTSURL(translated, in.Target)
+	case *bing.Engine:
+		_ = e
+		return bing.BuildTTSURL(translated, in.Target)
 	case *auto.Engine:
 		_ = e
-		if auto.PickBackend(in.Source, in.Target) != "google" {
-			return "", fmt.Errorf("TTS is only wired when auto routes to google (picked %s)", auto.PickBackend(in.Source, in.Target))
+		switch auto.PickBackend(in.Source, in.Target) {
+		case "google":
+			return google.BuildTTSURL(translated, in.Target)
+		case "bing":
+			return bing.BuildTTSURL(translated, in.Target)
+		default:
+			return "", fmt.Errorf("TTS is only wired when auto routes to google or bing (picked %s)", auto.PickBackend(in.Source, in.Target))
 		}
-		return google.BuildTTSURL(translated, in.Target)
 	default:
-		return "", fmt.Errorf("engine %q does not expose Google TTS in this build", eng.Name())
+		return "", fmt.Errorf("engine %q does not support TTS in this build", eng.Name())
 	}
 }
 

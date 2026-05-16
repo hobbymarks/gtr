@@ -12,7 +12,9 @@ import (
 // IdentifyLanguage requests auto→English translation and reads the detected
 // source language from the JSON "lang" field (e.g. "de-en" → "de").
 func (e *Engine) IdentifyLanguage(ctx context.Context, text, hostLang string) (string, error) {
-	_ = hostLang
+	if hostLang == "" {
+		hostLang = "en"
+	}
 	if strings.TrimSpace(text) == "" {
 		return "", fmt.Errorf("yandex: empty text")
 	}
@@ -20,7 +22,7 @@ func (e *Engine) IdentifyLanguage(ctx context.Context, text, hostLang string) (s
 		Text:     text,
 		Source:   "auto",
 		Target:   "en",
-		HostLang: "en",
+		HostLang: hostLang,
 		Brief:    true,
 	}
 	body, status, err := e.translatePost(ctx, in)
