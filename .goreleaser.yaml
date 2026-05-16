@@ -58,3 +58,13 @@ brews:
     directory: Formula
     install: |
       bin.install "gtr"
+
+scoops:
+  - repository:
+      owner: hobbymarks
+      name: release
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/hobbymarks/gtr"
+    description: "Multi-engine translation CLI inspired by translate-shell"
+    license: "MIT"
+    directory: bucket
