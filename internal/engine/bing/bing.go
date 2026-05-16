@@ -37,6 +37,7 @@ type Engine struct {
 	cacheMu    sync.Mutex
 }
 
+// New returns a Bing engine using the given HTTP client (typically [httpx.NewSharedClient]).
 func New(c *http.Client) *Engine {
 	if c == nil {
 		c = httpx.NewClient()

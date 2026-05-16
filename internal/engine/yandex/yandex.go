@@ -125,8 +125,8 @@ func parseTranslateJSON(raw []byte) (string, error) {
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", fmt.Errorf("yandex: invalid JSON: %w", err)
 	}
-	code := jsonNumberToInt(root["code"])
-	if code != 0 && code != 200 {
+	code, codeOK := jsonNumberToInt(root["code"])
+	if codeOK && code != 0 && code != 200 {
 		msg := ""
 		if m, ok := root["message"].(string); ok {
 			msg = m
@@ -154,17 +154,19 @@ func parseTranslateJSON(raw []byte) (string, error) {
 	}
 }
 
-func jsonNumberToInt(v interface{}) int {
+func jsonNumberToInt(v interface{}) (int, bool) {
 	switch x := v.(type) {
 	case float64:
-		return int(x)
+		return int(x), true
 	case int:
-		return x
+		return x, true
 	case string:
 		var n int
-		_, _ = fmt.Sscanf(x, "%d", &n)
-		return n
+		if _, err := fmt.Sscanf(x, "%d", &n); err == nil {
+			return n, true
+		}
+		return 0, false
 	default:
-		return 0
+		return 0, false
 	}
 }

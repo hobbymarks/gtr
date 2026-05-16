@@ -20,7 +20,10 @@ func BuildTTSURL(text, tl string) (string, error) {
 		return "", fmt.Errorf("google: empty target language for TTS")
 	}
 	if len(text) > maxTTSTextLen {
-		text = text[:maxTTSTextLen]
+		runes := []rune(text)
+		if len(runes) > maxTTSTextLen {
+			text = string(runes[:maxTTSTextLen])
+		}
 	}
 	v := url.Values{}
 	v.Set("ie", "UTF-8")

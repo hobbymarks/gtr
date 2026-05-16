@@ -35,7 +35,7 @@ Phased roadmap (Phase 0--7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELO
 ./gtr 'auto:en+de' 'hello'            # translate to en then de (multi-target, parallel)
 ./gtr -i ./in.txt -o ./out.txt -t fr  # file I/O (paths or file:// URLs)
 ./gtr -j -t ja a b c                  # input text "a b c" (never stdin)
-./gtr --identify 'hola'               # print detected language code
+./gtr --identify 'hola'                # print detected language code (default auto delegates to google/bing)
 ./gtr --dump -t de 'test'             # raw HTTP body (debug; engine-specific)
 ```
 
@@ -83,7 +83,7 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 | `apertium` | `www.apertium.org/apy/translate` GET; `auto` source -> `en` like translate-shell. | no | no |
 | `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). Lazily resolved on first use. | no | no |
 
-\*`auto` delegates capabilities to the chosen backend; **`--speak`** / **`-play`** is implemented only when routing matches Google TTS.
+\*`auto` delegates capabilities to the chosen backend; **`--speak`** / **`-play`** supports both Google and Bing TTS via auto routing.
 
 ### Engine features
 
@@ -156,6 +156,7 @@ go build -ldflags "-X main.version=0.1.0 -X main.commit=$(git rev-parse --short 
 | `NO_PROXY` | Bypass list for proxies. |
 | `USER_AGENT` | Default `User-Agent` on outbound requests (same name as translate-shell). |
 | `PAGER` | Used by **`--view`** (default `less -R`, or `more` on Windows). |
+| `USER_AGENT` | Default `User-Agent` on outbound requests (same name as translate-shell). |
 | `GTR_TIMEOUT` | HTTP request timeout in seconds (default 30; overridden by `--timeout`). |
 | `GTR_DEFAULT_TARGET` | Default target language when `-t` is omitted (also settable in `~/.gtrrc`). |
 | `NO_COLOR` | Disable ANSI color output (same as `--no-color`). |

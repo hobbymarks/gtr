@@ -8,8 +8,13 @@ import (
 	"strings"
 )
 
-// DefaultEngine is used when -e / --engine is omitted (translate-shell-style auto-router).
-const DefaultEngine = "auto"
+// DefaultEngine returns the configured default engine name (env/config override, or "auto").
+func DefaultEngine() string {
+	if v := EnvOverride("GTR_DEFAULT_ENGINE"); v != "" {
+		return v
+	}
+	return "auto"
+}
 
 // EnvOverride returns the value for key from environment variables or a
 // config file (~/.gtrrc). Environment variables take precedence.
