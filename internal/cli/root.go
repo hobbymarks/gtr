@@ -105,7 +105,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 			initColorOut(noColor)
 
 			if timeoutSec == 0 {
-				if s := strings.TrimSpace(os.Getenv("GTR_TIMEOUT")); s != "" {
+				if s := strings.TrimSpace(config.EnvOverride("GTR_TIMEOUT")); s != "" {
 					if n, err := strconv.Atoi(s); err == nil && n > 0 {
 						timeoutSec = n
 					}
@@ -402,7 +402,8 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 	cmd.Flags().SortFlags = false
 	cmd.Flags().BoolVarP(&printVersion, "version", "V", false, "Print version and exit")
 	cmd.Flags().BoolVar(&listEngines, "list-engines", false, "Print registered engine names and exit")
-	cmd.Flags().StringVarP(&engineName, "engine", "e", config.DefaultEngine, "translation engine (default "+config.DefaultEngine+")")
+	defEngine := config.DefaultEngine()
+	cmd.Flags().StringVarP(&engineName, "engine", "e", defEngine, "translation engine (default "+defEngine+")")
 	cmd.Flags().StringVarP(&target, "target", "t", "", "target language code (required)")
 	cmd.Flags().StringVarP(&source, "source", "s", "auto", "source language code (default auto)")
 	cmd.Flags().StringVar(&hostLang, "host-lang", "en", "host / UI language code sent to the engine (default en)")

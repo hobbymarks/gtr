@@ -1,7 +1,9 @@
 package httpx
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -43,6 +45,19 @@ type retryTransport struct {
 }
 
 func (rt *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Body != nil && req.Body != http.NoBody && req.GetBody == nil {
+		body, err := io.ReadAll(req.Body)
+		req.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("retry: read body: %w", err)
+		}
+		req.Body = io.NopCloser(bytes.NewReader(body))
+		req.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(body)), nil
+		}
+		req.ContentLength = int64(len(body))
+	}
+
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
