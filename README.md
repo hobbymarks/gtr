@@ -78,7 +78,7 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 |--------|------|-----|----------------------|
 | `auto` | **Default.** Picks `google` or `bing` from translate-shell language tables; else Google. | yes* | yes* |
 | `google` | `translate.googleapis.com` `translate_a/single`. | yes | yes |
-| `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). Setup tokens cached 5 min. | no | yes |
+| `bing` | Bing Web Translator (`/translator` + `ttranslatev3`). Setup tokens cached 5 min. TTS via `/tspeak`. | yes | yes |
 | `yandex` | `translate.yandex.net` `api/v1/tr.json/translate` (mobile-style; `ucid` per process). | no | no (upstream path disabled in translate-shell) |
 | `apertium` | `www.apertium.org/apy/translate` GET; `auto` source -> `en` like translate-shell. | no | no |
 | `spell` / `aspell` / `hunspell` | Local ispell-protocol checkers (requires binaries on `PATH`). Lazily resolved on first use. | no | no |

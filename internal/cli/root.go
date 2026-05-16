@@ -232,9 +232,9 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 			}
 			if speak && !identify {
 				switch canon {
-				case "google", "auto":
+				case "google", "auto", "bing":
 				default:
-					return fmt.Errorf("engine %q does not support --speak / --play (only google and auto)", canon)
+					return fmt.Errorf("engine %q does not support --speak / --play (only google, bing, and auto)", canon)
 				}
 			}
 
@@ -378,7 +378,7 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 					}
 				}
 				if speak {
-					u, werr := googleTTSURLForEngine(eng, inForTTS, outi.Text)
+					u, werr := ttsURLForEngine(eng, inForTTS, outi.Text)
 					if werr != nil {
 						return werr
 					}

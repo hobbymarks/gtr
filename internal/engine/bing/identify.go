@@ -10,7 +10,9 @@ import (
 
 // IdentifyLanguage runs auto-detect to a pivot target and returns Bing's detected source code.
 func (e *Engine) IdentifyLanguage(ctx context.Context, text, hostLang string) (string, error) {
-	_ = hostLang // Bing translate POST does not take UI language in this client path.
+	if hostLang == "" {
+		hostLang = "en"
+	}
 	if strings.TrimSpace(text) == "" {
 		return "", fmt.Errorf("bing: empty text")
 	}
@@ -20,7 +22,7 @@ func (e *Engine) IdentifyLanguage(ctx context.Context, text, hostLang string) (s
 	hosts := []string{"https://www.bing.com", "https://cn.bing.com"}
 	var lastErr error
 	for _, origin := range hosts {
-		body, status, err := e.translateRequest(ctx, origin, text, "auto", "en", false)
+		body, status, err := e.translateRequest(ctx, origin, text, "auto", hostLang, false)
 		if err != nil {
 			lastErr = err
 			continue
