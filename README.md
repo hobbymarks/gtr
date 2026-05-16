@@ -27,6 +27,60 @@ Phased roadmap (Phase 0--7) is tracked in [docs/DEVELOPMENT_PLAN.md](docs/DEVELO
 
 **Current status:** Phases **0--7** from [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md) are implemented, plus six enhancement phases (A--F) covering bug fixes, code consolidation, test coverage, defense/resilience, UX features, and performance.
 
+## Install
+
+### Pre-built binaries
+
+Download the latest release for your platform from the [Releases page](https://github.com/hobbymarks/gtr/releases/latest):
+
+```bash
+# Linux (amd64)
+wget https://github.com/hobbymarks/gtr/releases/latest/download/gtr_0.1.4_linux_amd64.tar.gz
+tar xzf gtr_0.1.4_linux_amd64.tar.gz
+sudo cp gtr /usr/local/bin/
+
+# Linux (arm64)
+wget https://github.com/hobbymarks/gtr/releases/latest/download/gtr_0.1.4_linux_arm64.tar.gz
+tar xzf gtr_0.1.4_linux_arm64.tar.gz
+sudo cp gtr /usr/local/bin/
+
+# macOS (amd64 / Intel)
+wget https://github.com/hobbymarks/gtr/releases/latest/download/gtr_0.1.4_darwin_amd64.tar.gz
+tar xzf gtr_0.1.4_darwin_amd64.tar.gz
+sudo cp gtr /usr/local/bin/
+
+# macOS (arm64 / Apple Silicon)
+wget https://github.com/hobbymarks/gtr/releases/latest/download/gtr_0.1.4_darwin_arm64.tar.gz
+tar xzf gtr_0.1.4_darwin_arm64.tar.gz
+sudo cp gtr /usr/local/bin/
+
+# Windows (amd64) — PowerShell
+Invoke-WebRequest -Uri https://github.com/hobbymarks/gtr/releases/latest/download/gtr_0.1.4_windows_amd64.zip -OutFile gtr.zip
+Expand-Archive gtr.zip -DestinationPath .
+```
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap hobbymarks/release
+brew install gtr
+```
+
+### Scoop (Windows)
+
+```powershell
+scoop bucket add release https://github.com/hobbymarks/release
+scoop install gtr
+```
+
+### Go install
+
+Requires Go 1.22 or newer.
+
+```bash
+go install github.com/hobbymarks/gtr/cmd/gtr@latest
+```
+
 ## Quick start
 
 ```bash
