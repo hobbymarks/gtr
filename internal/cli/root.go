@@ -82,7 +82,6 @@ gtr repl -t de                            Interactive REPL
 gtr --json -t ja "Hello"                  JSON output
 gtr config                                Show configuration`),
 		SilenceUsage:     true,
-		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printVersion {
