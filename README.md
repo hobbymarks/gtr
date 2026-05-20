@@ -175,7 +175,7 @@ python3 scripts/gen_language_support.py /path/to/translate-shell/include/Languag
 
 ## Testing
 
-22 test files covering CLI arguments, input parsing, language spec parsing, all engine parsers (golden fixtures), auto routing, registry, fuzzy lookup, TTS URL building, Bing setup scraping, shell REPL, Yandex UCID, Google identify HTTP flow, pager, and audio player.
+23 test files covering CLI arguments, input parsing, language spec parsing, all engine parsers (golden fixtures), auto routing, registry, fuzzy lookup, TTS URL building, Bing setup scraping, shell REPL, Yandex UCID, Google identify HTTP flow, pager, audio player, and config commands.
 
 | Type | Command |
 |------|---------|
@@ -244,6 +244,15 @@ gtr config get GTR_DEFAULT_TARGET     # get a value
 gtr config unset GTR_TIMEOUT          # remove a value
 gtr config path                    # show config file path
 ```
+
+### Self-update
+
+```bash
+gtr update                         # update to the latest release from GitHub
+gtr update --dry-run               # check for updates without installing
+```
+
+On Linux/macOS the binary is replaced in-place. On Windows the new binary is written to `gtr.exe.new` and must be replaced manually.
 
 ## Releases
 
