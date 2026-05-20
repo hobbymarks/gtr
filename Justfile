@@ -21,37 +21,48 @@ verify: tidy mod-verify vet test-race build
     ./gtr --help >/dev/null
     @echo "verify: OK"
 
+# Quick smoke check (build + version + help)
 smoke: build
     ./gtr -V
     ./gtr --help >/dev/null
 
+# Build binary for the current platform
 build binary="gtr":
     go build -ldflags "-X main.version={{ version }} -X main.commit={{ commit }}" -o "{{ binary }}" ./cmd/gtr
 
+# Run gtr with arguments (e.g. just run -t fr "Hello")
 run *args:
     go run ./cmd/gtr {{ args }}
 
+# Install gtr to $GOPATH/bin (or $GOBIN)
 install:
     go install ./cmd/gtr
 
+# Run unit tests (no network)
 test:
     go test ./...
 
+# Run unit tests with race detector
 test-race:
     go test -race ./...
 
+# Tidy go.mod and go.sum
 tidy:
     go mod tidy
 
+# Verify module dependencies are unmodified
 mod-verify:
     go mod verify
 
+# Run go vet static analysis
 vet:
     go vet ./...
 
+# Run golangci-lint (requires golangci-lint installed)
 lint:
     golangci-lint run ./...
 
+# Format Go source files
 fmt:
     go fmt ./...
 
@@ -59,6 +70,7 @@ fmt:
 gen-lang path="../translate-shell/include/LanguageData.awk":
     python3 scripts/gen_language_support.py "{{ path }}"
 
+# Remove build artifacts
 clean:
     rm -f gtr gtr.exe
 

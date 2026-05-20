@@ -61,20 +61,25 @@ func newRoot() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "gtr [SRC:TL] [text ...]",
-		Short: "Multi-engine translation CLI (translate-shell-inspired)",
+		Short: "Multi-engine command-line translator",
 		Long: strings.TrimSpace(`
-gtr is a Go rewrite-in-progress of the translate-shell idea: one CLI, multiple
-translation backends. Remote engines rely on undocumented HTTP endpoints and
-may break without notice; use responsibly and see the README for scope.
+Translate text between languages using multiple backends (auto, google, bing,
+yandex, apertium) plus spell checking (aspell, hunspell).
+
+Remote engines rely on undocumented HTTP endpoints and may break without notice.
 
 Provide text as arguments, or pipe stdin when there are no arguments. Target
-language (-t / --target) is required for translation unless you use an optional
+language (-t / --target) is required for translation, unless you use an optional
 leading SRC:TL token (e.g. :en or ja:en) without setting -s/-t.
 
-Phase 4 I/O: -i / -o (paths or file:// URLs), -j to force argv as input,
---identify for language detection, --dump for raw HTTP response bodies.
-Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google TTS);
---view (pager); --shell (line REPL).`),
+gtr [SRC:TL] [text ...]                  Translate with auto-detected source
+gtr -t fr "Hello world"                   Specify target language
+gtr -s en -t de -i input.txt              Read from file
+echo "Hello" | gtr -t es                  Pipe from stdin
+gtr -t zh --speak "Hello"                 Translate and speak
+gtr --identify "Bonjour le monde"         Detect language
+gtr --shell                               Interactive mode
+gtr --json -t ja "Hello"                  JSON output`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
@@ -403,10 +408,10 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 	cmd.Flags().BoolVarP(&printVersion, "version", "V", false, "Print version and exit")
 	cmd.Flags().BoolVar(&listEngines, "list-engines", false, "Print registered engine names and exit")
 	defEngine := config.DefaultEngine()
-	cmd.Flags().StringVarP(&engineName, "engine", "e", defEngine, "translation engine (default "+defEngine+")")
-	cmd.Flags().StringVarP(&target, "target", "t", "", "target language code (required)")
-	cmd.Flags().StringVarP(&source, "source", "s", "auto", "source language code (default auto)")
-	cmd.Flags().StringVar(&hostLang, "host-lang", "en", "host / UI language code sent to the engine (default en)")
+	cmd.Flags().StringVarP(&engineName, "engine", "e", defEngine, "translation engine")
+	cmd.Flags().StringVarP(&target, "target", "t", "", "target language code")
+	cmd.Flags().StringVarP(&source, "source", "s", "auto", "source language code")
+	cmd.Flags().StringVar(&hostLang, "host-lang", "en", "host / UI language code sent to the engine")
 	cmd.Flags().BoolVarP(&brief, "brief", "b", false, "Brief output (translation text only, trimmed)")
 	cmd.Flags().BoolVar(&noAutocorrect, "no-autocorrect", false, "Disable autocorrect (Google: qc instead of qca)")
 	cmd.Flags().BoolVar(&debug, "debug", false, "Log request URL to stderr (no credentials; includes query text)")
@@ -416,9 +421,9 @@ Phase 5+: -d dictionary payload (Google), spell engines; --speak / -play (Google
 	cmd.Flags().StringVarP(&inputPath, "input", "i", "", "Read input text from this file path or file:// URL")
 	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Write output to this file path or file:// URL (truncates)")
 	cmd.Flags().BoolVarP(&dictionary, "dictionary", "d", false, "Include dictionary / auxiliary JSON segments when the engine supports it (Google)")
-	cmd.Flags().BoolVar(&speak, "speak", false, "After translation, play Google TTS for the translated text (requires local player: mpv, ffplay, …)")
-	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak: play translated text via Google TTS (translate-shell-style)")
-	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (default less -R, or more on Windows)")
+	cmd.Flags().BoolVar(&speak, "speak", false, "Translate and speak via Google TTS (requires mpv or ffplay)")
+	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak")
+	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (less -R or more)")
 	cmd.Flags().BoolVar(&shell, "shell", false, "Interactive line-at-a-time translation on stdin (exit/quit to leave)")
 	cmd.Flags().IntVar(&timeoutSec, "timeout", 0, "HTTP request timeout in seconds (default 30; also GTR_TIMEOUT env)")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output structured JSON instead of plain text")
