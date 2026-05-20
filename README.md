@@ -62,7 +62,7 @@ Expand-Archive gtr.zip -DestinationPath .
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew tap hobbymarks/release
+brew tap hobbymarks/release https://github.com/hobbymarks/release
 brew install gtr
 ```
 
@@ -165,7 +165,7 @@ python3 scripts/gen_language_support.py /path/to/translate-shell/include/Languag
 
 ## Testing
 
-21 test files covering CLI arguments, input parsing, language spec parsing, all engine parsers (golden fixtures), auto routing, registry, fuzzy lookup, TTS URL building, Bing setup scraping, shell REPL, Yandex UCID, Google identify HTTP flow, pager, and audio player.
+22 test files covering CLI arguments, input parsing, language spec parsing, all engine parsers (golden fixtures), auto routing, registry, fuzzy lookup, TTS URL building, Bing setup scraping, shell REPL, Yandex UCID, Google identify HTTP flow, pager, and audio player.
 
 | Type | Command |
 |------|---------|
@@ -208,8 +208,6 @@ go build -ldflags "-X main.version=0.1.0 -X main.commit=$(git rev-parse --short 
 | `HTTP_PROXY` | Standard Go proxy support for HTTP clients. |
 | `HTTPS_PROXY` | Same for HTTPS. |
 | `NO_PROXY` | Bypass list for proxies. |
-| `USER_AGENT` | Default `User-Agent` on outbound requests (same name as translate-shell). |
-| `PAGER` | Used by **`--view`** (default `less -R`, or `more` on Windows). |
 | `USER_AGENT` | Default `User-Agent` on outbound requests (same name as translate-shell). |
 | `GTR_TIMEOUT` | HTTP request timeout in seconds (default 30; overridden by `--timeout`). |
 | `GTR_DEFAULT_TARGET` | Default target language when `-t` is omitted (also settable in `~/.gtrrc`). |
