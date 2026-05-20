@@ -80,7 +80,8 @@ gtr -t zh --speak "Hello"                 Translate and speak
 gtr --identify "Bonjour le monde"         Detect language
 gtr repl -t de                            Interactive REPL
 gtr --json -t ja "Hello"                  JSON output
-gtr config                                Show configuration`),
+gtr config                                Show configuration
+gtr update                                Update to latest release`),
 		SilenceUsage:     true,
 		Args:             cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -428,6 +429,7 @@ gtr config                                Show configuration`),
 
 	cmd.AddCommand(newReplCmd())
 	cmd.AddCommand(newConfigCmd())
+	cmd.AddCommand(newUpdateCmd())
 
 	return cmd
 }
