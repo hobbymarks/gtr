@@ -17,6 +17,14 @@ func testConfigRoot() *cobra.Command {
 	return cmd
 }
 
+func setConfigDir(t *testing.T, dir string) {
+	orig := configFilePathFn
+	configFilePathFn = func() string {
+		return filepath.Join(dir, ".gtrrc")
+	}
+	t.Cleanup(func() { configFilePathFn = orig })
+}
+
 func TestConfig_path(t *testing.T) {
 	cmd := testConfigRoot()
 	var out bytes.Buffer
@@ -72,9 +80,7 @@ func TestConfig_show(t *testing.T) {
 
 func TestConfig_set(t *testing.T) {
 	tmp := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmp)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	setConfigDir(t, tmp)
 
 	cmd := testConfigRoot()
 	var out bytes.Buffer
@@ -89,7 +95,6 @@ func TestConfig_set(t *testing.T) {
 		t.Fatalf("expected set confirmation, got %q", out.String())
 	}
 
-	// Verify file was written
 	data, err := os.ReadFile(filepath.Join(tmp, ".gtrrc"))
 	if err != nil {
 		t.Fatal(err)
@@ -101,11 +106,8 @@ func TestConfig_set(t *testing.T) {
 
 func TestConfig_unset(t *testing.T) {
 	tmp := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmp)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	setConfigDir(t, tmp)
 
-	// First set a value
 	err := os.WriteFile(filepath.Join(tmp, ".gtrrc"), []byte("GTR_DEFAULT_TARGET=de\n"), 0644)
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +126,6 @@ func TestConfig_unset(t *testing.T) {
 		t.Fatalf("expected unset confirmation, got %q", out.String())
 	}
 
-	// Verify file no longer has the key
 	data, err := os.ReadFile(filepath.Join(tmp, ".gtrrc"))
 	if err != nil {
 		t.Fatal(err)
@@ -136,9 +137,7 @@ func TestConfig_unset(t *testing.T) {
 
 func TestConfig_set_updateExisting(t *testing.T) {
 	tmp := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmp)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	setConfigDir(t, tmp)
 
 	err := os.WriteFile(filepath.Join(tmp, ".gtrrc"), []byte("GTR_DEFAULT_TARGET=de\nGTR_TIMEOUT=10\n"), 0644)
 	if err != nil {
@@ -161,11 +160,9 @@ func TestConfig_set_updateExisting(t *testing.T) {
 	if !strings.Contains(string(data), "GTR_DEFAULT_TARGET=fr") {
 		t.Fatalf("expected updated value, got %q", string(data))
 	}
-	// Should preserve other keys
 	if !strings.Contains(string(data), "GTR_TIMEOUT=10") {
 		t.Fatalf("should preserve GTR_TIMEOUT, got %q", string(data))
 	}
-	// Should not have the old value
 	if strings.Contains(string(data), "GTR_DEFAULT_TARGET=de") {
 		t.Fatalf("old value should be replaced, got %q", string(data))
 	}
@@ -173,9 +170,7 @@ func TestConfig_set_updateExisting(t *testing.T) {
 
 func TestConfig_envOverride(t *testing.T) {
 	tmp := t.TempDir()
-	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmp)
-	t.Cleanup(func() { os.Setenv("HOME", origHome) })
+	setConfigDir(t, tmp)
 
 	os.Setenv("GTR_DEFAULT_TARGET", "ja")
 	defer os.Unsetenv("GTR_DEFAULT_TARGET")

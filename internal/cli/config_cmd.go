@@ -36,7 +36,9 @@ func showConfig(cmd *cobra.Command) error {
 	path := configFilePath()
 
 	fmt.Fprintf(out, "Config file: %s\n", path)
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if path == "" {
+		fmt.Fprintln(out, "(could not determine home directory)")
+	} else if _, err := os.Stat(path); os.IsNotExist(err) {
 		fmt.Fprintln(out, "(file does not exist)")
 	} else if err != nil {
 		fmt.Fprintf(out, "(error: %v)\n", err)
@@ -126,22 +128,34 @@ func newConfigPathCmd() *cobra.Command {
 		Use:   "path",
 		Short: "Show the config file path",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), configFilePath())
+			p := configFilePath()
+			if p == "" {
+				return fmt.Errorf("could not determine config file location")
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), p)
 			return nil
 		},
 	}
 }
 
 func configFilePath() string {
+	if f := configFilePathFn; f != nil {
+		return f()
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "~/.gtrrc"
+		return ""
 	}
 	return filepath.Join(home, ".gtrrc")
 }
 
+var configFilePathFn func() string
+
 func configFileValue(key string) string {
 	path := configFilePath()
+	if path == "" {
+		return ""
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
@@ -165,6 +179,10 @@ func configSet(key, value string) error {
 	value = strings.TrimSpace(value)
 
 	path := configFilePath()
+	if path == "" {
+		return fmt.Errorf("cannot determine config file location")
+	}
+
 	lines := readConfigLines(path)
 	found := false
 
@@ -190,6 +208,10 @@ func configSet(key, value string) error {
 func configUnset(key string) error {
 	key = strings.TrimSpace(key)
 	path := configFilePath()
+	if path == "" {
+		return fmt.Errorf("cannot determine config file location")
+	}
+
 	lines := readConfigLines(path)
 
 	var out []string
