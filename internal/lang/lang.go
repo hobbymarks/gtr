@@ -116,3 +116,16 @@ func IsKnownLanguage(code string) bool {
 	}
 	return ResolveCanonical(code) != ""
 }
+
+// AllCodes returns all known language codes from the embedded data.
+func AllCodes() map[string]bool {
+	s := data()
+	if loadErr != nil || s == nil {
+		return nil
+	}
+	codes := make(map[string]bool, len(s.Support))
+	for k := range s.Support {
+		codes[k] = true
+	}
+	return codes
+}

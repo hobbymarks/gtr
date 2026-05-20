@@ -78,8 +78,9 @@ gtr -s en -t de -i input.txt              Read from file
 echo "Hello" | gtr -t es                  Pipe from stdin
 gtr -t zh --speak "Hello"                 Translate and speak
 gtr --identify "Bonjour le monde"         Detect language
-gtr --shell                               Interactive mode
-gtr --json -t ja "Hello"                  JSON output`),
+gtr repl -t de                            Interactive REPL
+gtr --json -t ja "Hello"                  JSON output
+gtr config                                Show configuration`),
 		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.ArbitraryArgs,
@@ -198,11 +199,11 @@ gtr --json -t ja "Hello"                  JSON output`),
 				return fmt.Errorf("engine %q: %w", canon, engErr)
 			}
 
-			if !shell && target == "" && !targetChanged {
+			if target == "" && !targetChanged {
 				target = config.DefaultTarget()
 			}
 
-			if isSpellEngine(canon) && !identify && !shell && strings.TrimSpace(target) == "" {
+			if isSpellEngine(canon) && !identify && strings.TrimSpace(target) == "" {
 				target = strings.TrimSpace(source)
 			}
 
@@ -424,10 +425,10 @@ gtr --json -t ja "Hello"                  JSON output`),
 	cmd.Flags().BoolVar(&speak, "speak", false, "Translate and speak via Google TTS (requires mpv or ffplay)")
 	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak")
 	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (less -R or more)")
-	cmd.Flags().BoolVar(&shell, "shell", false, "Interactive line-at-a-time translation on stdin (exit/quit to leave)")
-	cmd.Flags().IntVar(&timeoutSec, "timeout", 0, "HTTP request timeout in seconds (default 30; also GTR_TIMEOUT env)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output structured JSON instead of plain text")
-	cmd.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI color output")
+	cmd.Flags().BoolVar(&shell, "shell", false, "Same as gtr repl (interactive REPL with history and tab completion)")
+
+	cmd.AddCommand(newReplCmd())
+	cmd.AddCommand(newConfigCmd())
 
 	return cmd
 }
