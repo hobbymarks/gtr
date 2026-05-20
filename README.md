@@ -101,12 +101,16 @@ go install github.com/hobbymarks/gtr/cmd/gtr@latest
 ./gtr -t fr --json hello              # structured JSON output
 ./gtr --timeout 10 -t de hello        # custom HTTP timeout (also GTR_TIMEOUT env)
 ./gtr --no-color -t fr hello          # disable ANSI color output (also NO_COLOR env)
-./gtr --shell -e google -t fr         # line REPL with :engine, :target, :source etc.
+./gtr repl -e google -t fr            # interactive REPL with history and tab completion
+./gtr config                          # view current configuration
+./gtr config set GTR_DEFAULT_TARGET de  # set default target language
 ```
 
 ### Shell meta-commands
 
-Inside `--shell` mode, type `:help` for a list. Supported commands:
+Inside `--shell` or `gtr repl` mode, type `:help` for a list. In a terminal, the REPL provides **line editing, persistent history** (`~/.gtr_history`), and **tab completion** for commands, engine names, and language codes.
+
+Supported commands:
 
 ```
 :engine google     switch translation engine
@@ -114,6 +118,12 @@ Inside `--shell` mode, type `:help` for a list. Supported commands:
 :source en         set source language (auto for detect)
 :host en           set host/UI language
 :brief / :nobrief  toggle brief output
+:dict / :nodict    toggle dictionary payload
+:speak / :nospeak  toggle TTS after translation
+:dump / :nodump    toggle raw HTTP dump output
+:noautocorrect     disable autocorrect
+:autocorrect       enable autocorrect (default)
+:debug / :nodebug  toggle debug logging
 :info              show current settings
 exit / quit        leave REPL
 ```
@@ -152,7 +162,7 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 ./gtr -e google -t zh-CN hello           # phonetic (pinyin) shown when available
 ./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
 ./gtr -e google -play -t de 'hello'      # same as --speak (translate-shell-style flag)
-./gtr --shell -e auto -t fr               # line REPL; :help for commands, exit/quit to stop
+./gtr repl -e auto -t fr               # interactive REPL; :help for commands, exit/quit to stop
 ./scripts/check_upstream.sh               # reminder to diff against pinned translate-shell
 ```
 
@@ -224,6 +234,16 @@ GTR_TIMEOUT=15
 ```
 
 Environment variables take precedence over config file values.
+
+Manage via the `config` subcommand:
+
+```bash
+gtr config                        # show all settings
+gtr config set GTR_DEFAULT_TARGET de  # set a value
+gtr config get GTR_DEFAULT_TARGET     # get a value
+gtr config unset GTR_TIMEOUT          # remove a value
+gtr config path                    # show config file path
+```
 
 ## Releases
 
