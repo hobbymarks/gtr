@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -127,5 +128,19 @@ func AllCodes() map[string]bool {
 	for k := range s.Support {
 		codes[k] = true
 	}
+	return codes
+}
+
+// SortedCodes returns all known language codes in alphabetical order.
+func SortedCodes() []string {
+	s := data()
+	if loadErr != nil || s == nil {
+		return nil
+	}
+	codes := make([]string, 0, len(s.Support))
+	for k := range s.Support {
+		codes = append(codes, k)
+	}
+	sort.Strings(codes)
 	return codes
 }

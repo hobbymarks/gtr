@@ -153,6 +153,8 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 
 ```bash
 ./gtr --list-engines              # table: ENGINE / TTS / DICT
+./gtr --list-languages            # table: CODE / GOOGLE / BING
+./gtr --list-codes                # plain list of language codes
 ./gtr -t de hello                 # default -e auto -> google or bing by pair
 ./gtr -e yandex -t ru "hello"     # may fail if API changes
 ./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
@@ -162,8 +164,8 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 ./gtr -e google -t zh-CN hello           # phonetic (pinyin) shown when available
 ./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
 ./gtr -e google -play -t de 'hello'      # same as --speak (translate-shell-style flag)
+./gtr -e google --speak -t de --download-audio /tmp/out.mp3 hello  # save TTS audio to file
 ./gtr repl -e auto -t fr               # interactive REPL; :help for commands, exit/quit to stop
-./scripts/check_upstream.sh               # reminder to diff against pinned translate-shell
 ```
 
 Language support metadata is embedded from translate-shell `LanguageData.awk`. Regenerate after updating the upstream pin:

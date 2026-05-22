@@ -57,6 +57,9 @@ func newRoot() *cobra.Command {
 		timeoutSec    int
 		jsonOut       bool
 		noColor       bool
+		listLanguages bool
+		listCodes     bool
+		downloadAudio string
 	)
 
 	cmd := &cobra.Command{
@@ -101,6 +104,26 @@ gtr update                                Update to latest release`),
 					}
 				}
 				return w.Flush()
+			}
+			if listLanguages {
+				w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+				if _, err := fmt.Fprintln(w, "CODE\tGOOGLE\tBING"); err != nil {
+					return err
+				}
+				for _, c := range lang.SortedCodes() {
+					if _, err := fmt.Fprintf(w, "%s\t%v\t%v\n", c, lang.IsGoogleSupported(c), lang.IsBingSupported(c)); err != nil {
+						return err
+					}
+				}
+				return w.Flush()
+			}
+			if listCodes {
+				for _, c := range lang.SortedCodes() {
+					if _, err := fmt.Fprintln(cmd.OutOrStdout(), c); err != nil {
+						return err
+					}
+				}
+				return nil
 			}
 
 			engineName = strings.TrimSpace(strings.ToLower(engineName))
@@ -242,6 +265,9 @@ gtr update                                Update to latest release`),
 				default:
 					return fmt.Errorf("engine %q does not support --speak / --play (only google, bing, and auto)", canon)
 				}
+			}
+			if strings.TrimSpace(downloadAudio) != "" && !speak {
+				return fmt.Errorf("--download-audio requires --speak or --play")
 			}
 
 			out := cmd.OutOrStdout()
@@ -388,8 +414,17 @@ gtr update                                Update to latest release`),
 					if werr != nil {
 						return werr
 					}
-					if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
-						return werr
+					if ap := strings.TrimSpace(downloadAudio); ap != "" {
+						if werr := downloadTTSFile(cmd.Context(), u, ap); werr != nil {
+							return fmt.Errorf("download audio: %w", werr)
+						}
+						if _, werr := fmt.Fprintf(out, "Audio saved to %s\n", ap); werr != nil {
+							return werr
+						}
+					} else {
+						if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
+							return fmt.Errorf("play: %w", werr)
+						}
 					}
 				}
 			}
@@ -426,6 +461,12 @@ gtr update                                Update to latest release`),
 	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak")
 	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (less -R or more)")
 	cmd.Flags().BoolVar(&shell, "shell", false, "Same as gtr repl (interactive REPL with history and tab completion)")
+	cmd.Flags().IntVar(&timeoutSec, "timeout", 0, "HTTP request timeout in seconds (default 30; also GTR_TIMEOUT env)")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output structured JSON instead of plain text")
+	cmd.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI color output")
+	cmd.Flags().BoolVar(&listLanguages, "list-languages", false, "List supported language codes with engine coverage")
+	cmd.Flags().BoolVar(&listCodes, "list-codes", false, "List supported language codes")
+	cmd.Flags().StringVar(&downloadAudio, "download-audio", "", "Download TTS audio to file (use with --speak/--play)")
 
 	cmd.AddCommand(newReplCmd())
 	cmd.AddCommand(newConfigCmd())

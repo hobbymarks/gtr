@@ -70,6 +70,32 @@ func playGoogleTTS(ctx context.Context, u string) error {
 	return playAudioFile(ctx, path)
 }
 
+// downloadTTSFile fetches TTS audio from the given URL and saves it to dstPath.
+func downloadTTSFile(ctx context.Context, u, dstPath string) error {
+	client := httpx.NewClient()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("TTS fetch: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("TTS HTTP %d", resp.StatusCode)
+	}
+	f, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := io.Copy(f, io.LimitReader(resp.Body, 8<<20)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func playAudioFile(ctx context.Context, path string) error {
 	candidates := [][]string{
 		{"mpv", "--no-video", path},
