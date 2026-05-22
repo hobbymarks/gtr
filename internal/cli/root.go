@@ -60,6 +60,7 @@ func newRoot() *cobra.Command {
 		listLanguages bool
 		listCodes     bool
 		downloadAudio string
+		linguist      string
 	)
 
 	cmd := &cobra.Command{
@@ -122,6 +123,32 @@ gtr update                                Update to latest release`),
 					if _, err := fmt.Fprintln(cmd.OutOrStdout(), c); err != nil {
 						return err
 					}
+				}
+				return nil
+			}
+			if linguist != "" {
+				for _, code := range strings.Split(linguist, "+") {
+					code = strings.TrimSpace(code)
+					info, ok := lang.LanguageInfo(code)
+					if !ok {
+						return fmt.Errorf("unknown language code %q", code)
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), code)
+					fmt.Fprintf(cmd.OutOrStdout(), "  Name:      %s", info.Name)
+					if info.Endonym != "" && info.Endonym != info.Name {
+						fmt.Fprintf(cmd.OutOrStdout(), " (%s)", info.Endonym)
+					}
+					fmt.Fprintln(cmd.OutOrStdout())
+					fmt.Fprintf(cmd.OutOrStdout(), "  Family:    %s\n", info.Family)
+					fmt.Fprintf(cmd.OutOrStdout(), "  Script:    %s", info.Script)
+					if info.ISO != "" {
+						fmt.Fprintf(cmd.OutOrStdout(), "  ISO 639-3: %s", info.ISO)
+					}
+					fmt.Fprintln(cmd.OutOrStdout())
+					if info.SpokenIn != "" {
+						fmt.Fprintf(cmd.OutOrStdout(), "  Spoken in: %s\n", info.SpokenIn)
+					}
+					fmt.Fprintf(cmd.OutOrStdout(), "  Google:    %v  Bing: %v\n\n", lang.IsGoogleSupported(code), lang.IsBingSupported(code))
 				}
 				return nil
 			}
@@ -467,6 +494,7 @@ gtr update                                Update to latest release`),
 	cmd.Flags().BoolVar(&listLanguages, "list-languages", false, "List supported language codes with engine coverage")
 	cmd.Flags().BoolVar(&listCodes, "list-codes", false, "List supported language codes")
 	cmd.Flags().StringVar(&downloadAudio, "download-audio", "", "Download TTS audio to file (use with --speak/--play)")
+	cmd.Flags().StringVarP(&linguist, "linguist", "L", "", "Show language details (code or code+code...)")
 
 	cmd.AddCommand(newReplCmd())
 	cmd.AddCommand(newConfigCmd())

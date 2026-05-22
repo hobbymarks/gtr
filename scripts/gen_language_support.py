@@ -31,10 +31,15 @@ def main() -> int:
             locales.setdefault(code, {})[attr] = val
 
     support: dict[str, dict[str, bool]] = {}
+    meta: dict[str, dict[str, str]] = {}
     for code, attrs in locales.items():
         sup = attrs.get("supported-by", "")
         parts = [p.strip().lower() for p in sup.split(";") if p.strip()]
         support[code] = {"google": "google" in parts, "bing": "bing" in parts}
+        meta[code] = {}
+        for field in ("name", "endonym", "family", "script", "iso", "spoken-in"):
+            if field in attrs:
+                meta[code][field] = attrs[field]
 
     aliases: dict[str, str] = {}
 
@@ -61,7 +66,7 @@ def main() -> int:
 
     out_path = os.path.join(root, "internal", "lang", "data", "language_support.json")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    doc = {"support": support, "aliases": aliases}
+    doc = {"support": support, "aliases": aliases, "meta": meta}
     with open(out_path, "w", encoding="utf-8") as o:
         json.dump(doc, o, ensure_ascii=False, separators=(",", ":"))
     print("wrote", out_path, "locales", len(support), "aliases", len(aliases))

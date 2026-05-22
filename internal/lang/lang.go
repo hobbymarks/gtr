@@ -26,7 +26,8 @@ type store struct {
 		Google bool `json:"google"`
 		Bing   bool `json:"bing"`
 	} `json:"support"`
-	Aliases map[string]string `json:"aliases"`
+	Aliases map[string]string            `json:"aliases"`
+	Meta    map[string]map[string]string `json:"meta"`
 }
 
 func data() *store {
@@ -143,4 +144,38 @@ func SortedCodes() []string {
 	}
 	sort.Strings(codes)
 	return codes
+}
+
+// LangInfo holds metadata for a single language code.
+type LangInfo struct {
+	Name     string
+	Endonym  string
+	Family   string
+	Script   string
+	ISO      string
+	SpokenIn string
+}
+
+// LanguageInfo returns metadata for a language code.
+func LanguageInfo(code string) (LangInfo, bool) {
+	s := data()
+	if loadErr != nil || s == nil {
+		return LangInfo{}, false
+	}
+	code = ResolveCanonical(code)
+	if code == "" {
+		return LangInfo{}, false
+	}
+	m, ok := s.Meta[code]
+	if !ok {
+		return LangInfo{}, false
+	}
+	return LangInfo{
+		Name:     m["name"],
+		Endonym:  m["endonym"],
+		Family:   m["family"],
+		Script:   m["script"],
+		ISO:      m["iso"],
+		SpokenIn: m["spoken-in"],
+	}, true
 }

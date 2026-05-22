@@ -155,6 +155,8 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 ./gtr --list-engines              # table: ENGINE / TTS / DICT
 ./gtr --list-languages            # table: CODE / GOOGLE / BING
 ./gtr --list-codes                # plain list of language codes
+./gtr -L en                       # language details (name, family, script, ISO, etc.)
+./gtr -L ja+zh-CN                 # multiple codes at once
 ./gtr -t de hello                 # default -e auto -> google or bing by pair
 ./gtr -e yandex -t ru "hello"     # may fail if API changes
 ./gtr -e apertium -s en -t es "hello"   # only valid Apertium pairs return text
