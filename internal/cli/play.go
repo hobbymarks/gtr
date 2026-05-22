@@ -54,6 +54,24 @@ func playGoogleTTS(ctx context.Context, u string) error {
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("TTS HTTP %d", resp.StatusCode)
 	}
+
+	// Try streaming directly to player via stdin (faster, no temp file)
+	for _, args := range [][]string{
+		{"mpv", "--no-video", "--really-quiet", "-"},
+		{"ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", "-"},
+	} {
+		bin, err := exec.LookPath(args[0])
+		if err != nil {
+			continue
+		}
+		cmd := exec.CommandContext(ctx, bin, args[1:]...)
+		cmd.Stdin = resp.Body
+		cmd.Stdout = io.Discard
+		cmd.Stderr = io.Discard
+		return cmd.Run()
+	}
+
+	// Fallback: write to temp file and play (share the same HTTP body reader)
 	f, err := os.CreateTemp("", "gtr-tts-*.mp3")
 	if err != nil {
 		return err
@@ -98,8 +116,8 @@ func downloadTTSFile(ctx context.Context, u, dstPath string) error {
 
 func playAudioFile(ctx context.Context, path string) error {
 	candidates := [][]string{
-		{"mpv", "--no-video", path},
-		{"ffplay", "-nodisp", "-autoexit", path},
+		{"mpv", "--no-video", "--really-quiet", path},
+		{"ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path},
 	}
 	if runtime.GOOS == "darwin" {
 		candidates = append([][]string{{"afplay", path}}, candidates...)
