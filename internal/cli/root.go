@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -61,6 +64,7 @@ func newRoot() *cobra.Command {
 		listCodes     bool
 		downloadAudio string
 		linguist      string
+		browser       bool
 	)
 
 	cmd := &cobra.Command{
@@ -283,6 +287,10 @@ gtr update                                Update to latest release`),
 				}
 			}
 
+			if browser {
+				return openBrowser(cmd.Context(), source, target, text)
+			}
+
 			if dictionary && !identify && !engine.CapabilitiesOf(canon).SupportsDictionary {
 				return fmt.Errorf("engine %q does not support dictionary mode (-d)", canon)
 			}
@@ -495,6 +503,7 @@ gtr update                                Update to latest release`),
 	cmd.Flags().BoolVar(&listCodes, "list-codes", false, "List supported language codes")
 	cmd.Flags().StringVar(&downloadAudio, "download-audio", "", "Download TTS audio to file (use with --speak/--play)")
 	cmd.Flags().StringVarP(&linguist, "linguist", "L", "", "Show language details (code or code+code...)")
+	cmd.Flags().BoolVarP(&browser, "browser", "B", false, "Open Google Translate page in browser instead of translating")
 
 	cmd.AddCommand(newReplCmd())
 	cmd.AddCommand(newConfigCmd())
@@ -510,6 +519,26 @@ func isSpellEngine(name string) bool {
 	default:
 		return false
 	}
+}
+
+// openBrowser constructs a Google Translate URL and opens it in the default browser.
+func openBrowser(ctx context.Context, source, target, text string) error {
+	u := "https://translate.google.com/?" +
+		"sl=" + url.QueryEscape(source) +
+		"&tl=" + url.QueryEscape(target) +
+		"&text=" + url.QueryEscape(text) +
+		"&op=translate"
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.CommandContext(ctx, "open", u)
+	case "windows":
+		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", u)
+	default:
+		cmd = exec.CommandContext(ctx, "xdg-open", u)
+	}
+	return cmd.Run()
 }
 
 // Main is a tiny entrypoint helper so cmd/gtr can stay minimal.

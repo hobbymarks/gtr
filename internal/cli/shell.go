@@ -42,6 +42,7 @@ func runShellScanner(cmd *cobra.Command, eng engine.Engine, base engine.Translat
 	sc.Buffer(make([]byte, 0, 64*1024), max)
 
 	var speak bool
+	var lastText string
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Type :help for meta-commands, exit/quit to leave.")
 	if base.Target == "" {
@@ -59,7 +60,7 @@ func runShellScanner(cmd *cobra.Command, eng engine.Engine, base engine.Translat
 		if strings.EqualFold(line, "exit") || strings.EqualFold(line, "quit") {
 			break
 		}
-		if err := processLine(cmd, &eng, &base, &engineName, &speak, line); err != nil {
+		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, line); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
 		}
 	}
@@ -86,6 +87,7 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 	})
 
 	var speak bool
+	var lastText string
 
 	fmt.Fprintf(cmd.OutOrStdout(), "gtr shell — Type :help for commands, exit/quit to leave, Ctrl+C to cancel input, Ctrl+D to exit.\n")
 	if base.Target == "" {
@@ -117,7 +119,7 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 
 		l.AppendHistory(line)
 
-		if err := processLine(cmd, &eng, &base, &engineName, &speak, line); err != nil {
+		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, line); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
 		}
 	}
@@ -128,11 +130,11 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 	return nil
 }
 
-func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, line string) error {
+func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, lastText *string, line string) error {
 	if strings.HasPrefix(line, ":") {
 		// Known meta-commands take priority over SRC:TL shorthand
 		if isKnownMetaCommand(line) {
-			return handleMetaCommand(cmd, eng, base, engName, speak, line)
+			return handleMetaCommand(cmd, eng, base, engName, speak, lastText, line)
 		}
 		// Try :TL text shorthand (e.g. ":en hello", "ja:de こんにちは")
 		if text, tl, ok := parseShellLangSpec(line); ok {
@@ -143,6 +145,7 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 				return nil
 			}
 			base.Target = tl
+			*lastText = text
 			in := *base
 			in.Text = text
 			out, err := (*eng).Translate(cmd.Context(), in)
@@ -168,6 +171,7 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 		}
 		return fmt.Errorf("unknown command %q — use :target <code> or :<code> text (type :help)", strings.Fields(line)[0])
 	}
+	*lastText = line
 	in := *base
 	in.Text = line
 	out, err := (*eng).Translate(cmd.Context(), in)
@@ -191,7 +195,7 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 	return nil
 }
 
-func handleMetaCommand(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, line string) error {
+func handleMetaCommand(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, lastText *string, line string) error {
 	parts := strings.Fields(line)
 	if len(parts) == 0 {
 		return nil
@@ -215,6 +219,7 @@ func handleMetaCommand(cmd *cobra.Command, eng *engine.Engine, base *engine.Tran
   :autocorrect     enable autocorrect
   :debug           enable debug logging
   :nodebug         disable debug logging
+  :browser [text]  open translation in web browser
   :info            show current settings
   exit / quit      leave shell
 Ctrl+C            cancel current input line
@@ -297,6 +302,19 @@ Ctrl+D            exit shell`)
 			"engine: %s  source: %s  target: %s  host: %s  brief: %v  dict: %v  speak: %v  dump: %v  noautocorrect: %v  debug: %v\n",
 			*engName, base.Source, base.Target, base.HostLang, base.Brief,
 			base.Dictionary, *speak, base.Dump, base.NoAutocorrect, base.Debug)
+	case ":browser":
+		text := strings.Join(parts[1:], " ")
+		if text == "" {
+			text = *lastText
+		}
+		if text == "" {
+			return fmt.Errorf("no text to open in browser")
+		}
+		target := base.Target
+		if target == "" {
+			target = "en"
+		}
+		return openBrowser(cmd.Context(), base.Source, target, text)
 	default:
 		return fmt.Errorf("unknown command %q (type :help)", parts[0])
 	}
@@ -335,7 +353,7 @@ func shellComplete(line string, currentEngine string) []string {
 		":brief", ":nobrief", ":dict", ":nodict",
 		":speak", ":nospeak", ":dump", ":nodump",
 		":noautocorrect", ":autocorrect", ":debug", ":nodebug",
-		":info", ":help",
+		":info", ":help", ":browser",
 	}
 
 	if !strings.Contains(line, " ") {
@@ -392,7 +410,7 @@ func isKnownMetaCommand(line string) bool {
 	case ":help", ":engine", ":target", ":source", ":host",
 		":brief", ":nobrief", ":dict", ":nodict",
 		":speak", ":nospeak", ":dump", ":nodump",
-		":noautocorrect", ":autocorrect", ":debug", ":nodebug", ":info":
+		":noautocorrect", ":autocorrect", ":debug", ":nodebug", ":info", ":browser":
 		return true
 	}
 	return false
