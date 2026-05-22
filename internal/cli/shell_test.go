@@ -202,12 +202,13 @@ func TestProcessLine_langShorthand(t *testing.T) {
 	var engName string = "mock"
 	var speak bool
 	var lastText string
+	var narrator string
 	cmd := &cobra.Command{}
 	var out strings.Builder
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	err := processLine(cmd, &eng, &base, &engName, &speak, &lastText, ":en")
+	err := processLine(cmd, &eng, &base, &engName, &speak, &lastText, &narrator, ":en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +221,7 @@ func TestProcessLine_langShorthand(t *testing.T) {
 
 	// :de hello should translate
 	out.Reset()
-	err = processLine(cmd, &eng, &base, &engName, &speak, &lastText, ":de hallo")
+	err = processLine(cmd, &eng, &base, &engName, &speak, &lastText, &narrator, ":de hallo")
 	if err != nil {
 		t.Fatal(err)
 	}

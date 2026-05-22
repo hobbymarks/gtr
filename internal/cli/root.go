@@ -65,6 +65,7 @@ func newRoot() *cobra.Command {
 		downloadAudio string
 		linguist      string
 		browser       bool
+		narrator      string
 	)
 
 	cmd := &cobra.Command{
@@ -417,6 +418,9 @@ gtr update                                Update to latest release`),
 				inForTTS := engine.TranslateInput{
 					Text: text, Source: source, Target: tl, HostLang: hostLang,
 				}
+				if n := strings.TrimSpace(narrator); n != "" {
+					inForTTS.Target = n
+				}
 				if jsonOut {
 					continue
 				}
@@ -504,6 +508,7 @@ gtr update                                Update to latest release`),
 	cmd.Flags().StringVar(&downloadAudio, "download-audio", "", "Download TTS audio to file (use with --speak/--play)")
 	cmd.Flags().StringVarP(&linguist, "linguist", "L", "", "Show language details (code or code+code...)")
 	cmd.Flags().BoolVarP(&browser, "browser", "B", false, "Open Google Translate page in browser instead of translating")
+	cmd.Flags().StringVarP(&narrator, "narrator", "n", "", "TTS voice language code (override the translation target language)")
 
 	cmd.AddCommand(newReplCmd())
 	cmd.AddCommand(newConfigCmd())

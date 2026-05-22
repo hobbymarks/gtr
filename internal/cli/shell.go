@@ -43,6 +43,7 @@ func runShellScanner(cmd *cobra.Command, eng engine.Engine, base engine.Translat
 
 	var speak bool
 	var lastText string
+	var narrator string
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Type :help for meta-commands, exit/quit to leave.")
 	if base.Target == "" {
@@ -60,7 +61,7 @@ func runShellScanner(cmd *cobra.Command, eng engine.Engine, base engine.Translat
 		if strings.EqualFold(line, "exit") || strings.EqualFold(line, "quit") {
 			break
 		}
-		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, line); err != nil {
+		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, &narrator, line); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
 		}
 	}
@@ -88,6 +89,7 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 
 	var speak bool
 	var lastText string
+	var narrator string
 
 	fmt.Fprintf(cmd.OutOrStdout(), "gtr shell — Type :help for commands, exit/quit to leave, Ctrl+C to cancel input, Ctrl+D to exit.\n")
 	if base.Target == "" {
@@ -119,7 +121,7 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 
 		l.AppendHistory(line)
 
-		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, line); err != nil {
+		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, &narrator, line); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
 		}
 	}
@@ -130,11 +132,11 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 	return nil
 }
 
-func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, lastText *string, line string) error {
+func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, lastText *string, narrator *string, line string) error {
 	if strings.HasPrefix(line, ":") {
 		// Known meta-commands take priority over SRC:TL shorthand
 		if isKnownMetaCommand(line) {
-			return handleMetaCommand(cmd, eng, base, engName, speak, lastText, line)
+			return handleMetaCommand(cmd, eng, base, engName, speak, lastText, narrator, line)
 		}
 		// Try :TL text shorthand (e.g. ":en hello", "ja:de こんにちは")
 		if text, tl, ok := parseShellLangSpec(line); ok {
@@ -159,7 +161,11 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 				fmt.Fprintln(cmd.OutOrStdout(), out.Dictionary)
 			}
 			if *speak {
-				u, werr := ttsURLForEngine(*eng, in, out.Text)
+				ttsIn := in
+				if n := strings.TrimSpace(*narrator); n != "" {
+					ttsIn.Target = n
+				}
+				u, werr := ttsURLForEngine(*eng, ttsIn, out.Text)
 				if werr != nil {
 					return fmt.Errorf("tts: %w", werr)
 				}
@@ -184,7 +190,11 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 		fmt.Fprintln(cmd.OutOrStdout(), out.Dictionary)
 	}
 	if *speak {
-		u, werr := ttsURLForEngine(*eng, in, out.Text)
+		ttsIn := in
+		if n := strings.TrimSpace(*narrator); n != "" {
+			ttsIn.Target = n
+		}
+		u, werr := ttsURLForEngine(*eng, ttsIn, out.Text)
 		if werr != nil {
 			return fmt.Errorf("tts: %w", werr)
 		}
@@ -195,7 +205,7 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 	return nil
 }
 
-func handleMetaCommand(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, lastText *string, line string) error {
+func handleMetaCommand(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, lastText *string, narrator *string, line string) error {
 	parts := strings.Fields(line)
 	if len(parts) == 0 {
 		return nil
@@ -219,6 +229,7 @@ func handleMetaCommand(cmd *cobra.Command, eng *engine.Engine, base *engine.Tran
   :autocorrect     enable autocorrect
   :debug           enable debug logging
   :nodebug         disable debug logging
+  :narrator <code> set TTS voice language (or clear)
   :browser [text]  open translation in web browser
   :info            show current settings
   exit / quit      leave shell
@@ -298,10 +309,14 @@ Ctrl+D            exit shell`)
 		base.Debug = false
 		fmt.Fprintln(cmd.OutOrStdout(), "debug: off")
 	case ":info":
+		nar := ""
+		if narrator != nil {
+			nar = *narrator
+		}
 		fmt.Fprintf(cmd.OutOrStdout(),
-			"engine: %s  source: %s  target: %s  host: %s  brief: %v  dict: %v  speak: %v  dump: %v  noautocorrect: %v  debug: %v\n",
+			"engine: %s  source: %s  target: %s  host: %s  brief: %v  dict: %v  speak: %v  narrator: %s  dump: %v  noautocorrect: %v  debug: %v\n",
 			*engName, base.Source, base.Target, base.HostLang, base.Brief,
-			base.Dictionary, *speak, base.Dump, base.NoAutocorrect, base.Debug)
+			base.Dictionary, *speak, nar, base.Dump, base.NoAutocorrect, base.Debug)
 	case ":browser":
 		text := strings.Join(parts[1:], " ")
 		if text == "" {
@@ -315,6 +330,15 @@ Ctrl+D            exit shell`)
 			target = "en"
 		}
 		return openBrowser(cmd.Context(), base.Source, target, text)
+	case ":narrator":
+		if len(parts) < 2 {
+			*narrator = ""
+			fmt.Fprintln(cmd.OutOrStdout(), "narrator: cleared")
+			return nil
+		}
+		*narrator = strings.TrimSpace(parts[1])
+		fmt.Fprintf(cmd.OutOrStdout(), "narrator: %s\n", *narrator)
+		return nil
 	default:
 		return fmt.Errorf("unknown command %q (type :help)", parts[0])
 	}
@@ -353,7 +377,7 @@ func shellComplete(line string, currentEngine string) []string {
 		":brief", ":nobrief", ":dict", ":nodict",
 		":speak", ":nospeak", ":dump", ":nodump",
 		":noautocorrect", ":autocorrect", ":debug", ":nodebug",
-		":info", ":help", ":browser",
+		":info", ":help", ":browser", ":narrator",
 	}
 
 	if !strings.Contains(line, " ") {
@@ -410,7 +434,7 @@ func isKnownMetaCommand(line string) bool {
 	case ":help", ":engine", ":target", ":source", ":host",
 		":brief", ":nobrief", ":dict", ":nodict",
 		":speak", ":nospeak", ":dump", ":nodump",
-		":noautocorrect", ":autocorrect", ":debug", ":nodebug", ":info", ":browser":
+		":noautocorrect", ":autocorrect", ":debug", ":nodebug", ":info", ":browser", ":narrator":
 		return true
 	}
 	return false

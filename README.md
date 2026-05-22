@@ -167,6 +167,7 @@ The pager command is built by **splitting `$PAGER` on spaces** (no shell-style q
 ./gtr -e google --speak -t de 'hello'     # translate then play TTS (mpv / ffplay / afplay)
 ./gtr -e google -play -t de 'hello'      # same as --speak (translate-shell-style flag)
 ./gtr -e google --speak -t de --download-audio /tmp/out.mp3 hello  # save TTS audio to file
+./gtr -e google --speak -n ja -t fr "hello"  # speak with Japanese voice
 ./gtr -B -t fr "hello"             # open in browser instead of translating
 ./gtr repl -e auto -t fr               # interactive REPL; :help for commands, exit/quit to stop
 ```
