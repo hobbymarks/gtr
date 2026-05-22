@@ -122,7 +122,7 @@ func ParseTranslateSingleResponse(raw []byte) (text string, phonetic string, err
 	if len(raw) == 0 {
 		return "", "", fmt.Errorf("google: empty response body")
 	}
-	var root interface{}
+	var root any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", "", fmt.Errorf("google: invalid JSON: %w", err)
 	}
@@ -136,18 +136,18 @@ func ParseTranslateSingleResponse(raw []byte) (text string, phonetic string, err
 	return out, phon, nil
 }
 
-func joinSentenceTranslations(v interface{}) (text string, phonetic string, err error) {
-	root, ok := v.([]interface{})
+func joinSentenceTranslations(v any) (text string, phonetic string, err error) {
+	root, ok := v.([]any)
 	if !ok || len(root) == 0 {
 		return "", "", fmt.Errorf("google: unexpected JSON root shape")
 	}
-	sentences, ok := root[0].([]interface{})
+	sentences, ok := root[0].([]any)
 	if !ok {
 		return "", "", fmt.Errorf("google: missing sentence list at index 0")
 	}
 	var b strings.Builder
 	for _, s := range sentences {
-		seg, ok := s.([]interface{})
+		seg, ok := s.([]any)
 		if !ok || len(seg) < 1 {
 			continue
 		}
@@ -160,7 +160,7 @@ func joinSentenceTranslations(v interface{}) (text string, phonetic string, err 
 	text = b.String()
 
 	if len(sentences) >= 2 {
-		if seg, ok := sentences[1].([]interface{}); ok && len(seg) > 2 {
+		if seg, ok := sentences[1].([]any); ok && len(seg) > 2 {
 			if p, ok := seg[2].(string); ok && strings.TrimSpace(p) != "" {
 				phonetic = p
 			}

@@ -130,7 +130,43 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 
 func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateInput, engName *string, speak *bool, line string) error {
 	if strings.HasPrefix(line, ":") {
-		return handleMetaCommand(cmd, eng, base, engName, speak, line)
+		// Known meta-commands take priority over SRC:TL shorthand
+		if isKnownMetaCommand(line) {
+			return handleMetaCommand(cmd, eng, base, engName, speak, line)
+		}
+		// Try :TL text shorthand (e.g. ":en hello", "ja:de こんにちは")
+		if text, tl, ok := parseShellLangSpec(line); ok {
+			if text == "" {
+				// Just set target, no text to translate (like :target)
+				base.Target = tl
+				fmt.Fprintf(cmd.OutOrStdout(), "target: %s\n", tl)
+				return nil
+			}
+			base.Target = tl
+			in := *base
+			in.Text = text
+			out, err := (*eng).Translate(cmd.Context(), in)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "[%s] ", tl)
+			fmt.Fprintln(cmd.OutOrStdout(), out.Text)
+			if out.Dictionary != "" {
+				fmt.Fprintln(cmd.OutOrStdout(), "--")
+				fmt.Fprintln(cmd.OutOrStdout(), out.Dictionary)
+			}
+			if *speak {
+				u, werr := ttsURLForEngine(*eng, in, out.Text)
+				if werr != nil {
+					return fmt.Errorf("tts: %w", werr)
+				}
+				if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
+					return fmt.Errorf("play: %w", werr)
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("unknown command %q — use :target <code> or :<code> text (type :help)", strings.Fields(line)[0])
 	}
 	in := *base
 	in.Text = line
@@ -343,4 +379,38 @@ func shellComplete(line string, currentEngine string) []string {
 	}
 
 	return completions
+}
+
+// isKnownMetaCommand returns true if the line starts with a known REPL meta-command.
+func isKnownMetaCommand(line string) bool {
+	parts := strings.Fields(line)
+	if len(parts) == 0 {
+		return false
+	}
+	cmd := strings.ToLower(parts[0])
+	switch cmd {
+	case ":help", ":engine", ":target", ":source", ":host",
+		":brief", ":nobrief", ":dict", ":nodict",
+		":speak", ":nospeak", ":dump", ":nodump",
+		":noautocorrect", ":autocorrect", ":debug", ":nodebug", ":info":
+		return true
+	}
+	return false
+}
+
+// parseShellLangSpec tries to parse a line starting with : as :TL text or SRC:TL text.
+// Returns the remaining text, the first target language, and true on success.
+func parseShellLangSpec(line string) (text, target string, ok bool) {
+	parts := strings.Fields(line)
+	if len(parts) < 1 {
+		return "", "", false
+	}
+	src, tgts, ok := parseLangPairToken(parts[0])
+	if !ok || len(tgts) == 0 {
+		return "", "", false
+	}
+	target = tgts[0]
+	_ = src // source override handled via :source meta-command
+	text = strings.Join(parts[1:], " ")
+	return text, target, true
 }

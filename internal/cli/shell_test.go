@@ -191,10 +191,14 @@ func TestShellPrompt(t *testing.T) {
 	}
 }
 
-func TestProcessLine_unknownMetaCommand(t *testing.T) {
+func TestProcessLine_langShorthand(t *testing.T) {
 	mock := &mockEngine{}
 	var eng engine.Engine = mock
-	base := engine.TranslateInput{}
+	base := engine.TranslateInput{
+		Source:   "auto",
+		Target:   "",
+		HostLang: "en",
+	}
 	var engName string = "mock"
 	var speak bool
 	cmd := &cobra.Command{}
@@ -202,8 +206,25 @@ func TestProcessLine_unknownMetaCommand(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	err := processLine(cmd, &eng, &base, &engName, &speak, ":bogus")
-	if err == nil {
-		t.Fatal("expected error for unknown meta-command")
+	// :en with no text should just set target
+	err := processLine(cmd, &eng, &base, &engName, &speak, ":en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "target: en") {
+		t.Fatalf("expected target set, got %q", out.String())
+	}
+	if base.Target != "en" {
+		t.Fatalf("expected target=en, got %q", base.Target)
+	}
+
+	// :de hello should translate
+	out.Reset()
+	err = processLine(cmd, &eng, &base, &engName, &speak, ":de hallo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "[de] [de] hallo") {
+		t.Fatalf("expected translation, got %q", out.String())
 	}
 }

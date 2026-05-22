@@ -121,7 +121,7 @@ func stripDigraph(code string) string {
 }
 
 func parseTranslateJSON(raw []byte) (string, error) {
-	var root map[string]interface{}
+	var root map[string]any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", fmt.Errorf("yandex: invalid JSON: %w", err)
 	}
@@ -139,7 +139,7 @@ func parseTranslateJSON(raw []byte) (string, error) {
 		return "", fmt.Errorf("yandex: %s", msg)
 	}
 	switch t := root["text"].(type) {
-	case []interface{}:
+	case []any:
 		if len(t) == 0 {
 			return "", fmt.Errorf("yandex: empty text array")
 		}
@@ -154,7 +154,7 @@ func parseTranslateJSON(raw []byte) (string, error) {
 	}
 }
 
-func jsonNumberToInt(v interface{}) (int, bool) {
+func jsonNumberToInt(v any) (int, bool) {
 	switch x := v.(type) {
 	case float64:
 		return int(x), true

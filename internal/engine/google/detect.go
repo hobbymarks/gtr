@@ -8,7 +8,7 @@ import (
 // ParseDetectedSourceLanguage reads the detected source language from a
 // translate_a/single JSON payload (root[2] when present, as in translate-shell).
 func ParseDetectedSourceLanguage(raw []byte) (string, error) {
-	var root []interface{}
+	var root []any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", fmt.Errorf("google: invalid JSON: %w", err)
 	}

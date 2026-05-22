@@ -48,7 +48,7 @@ func parseDetectedSourceFromLangJSON(raw []byte) (string, error) {
 }
 
 func parseLangField(raw []byte) (string, error) {
-	var root map[string]interface{}
+	var root map[string]any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", fmt.Errorf("yandex: invalid JSON: %w", err)
 	}

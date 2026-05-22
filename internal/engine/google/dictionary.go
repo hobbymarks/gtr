@@ -15,7 +15,7 @@ func FormatDictionaryPayload(raw []byte) (string, error) {
 	if len(raw) == 0 {
 		return "", fmt.Errorf("google: empty response body")
 	}
-	var root []interface{}
+	var root []any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", fmt.Errorf("google: invalid JSON: %w", err)
 	}

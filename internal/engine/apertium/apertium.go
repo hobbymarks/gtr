@@ -93,7 +93,7 @@ func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engin
 }
 
 func parseTranslateBody(raw []byte) (string, error) {
-	var root map[string]interface{}
+	var root map[string]any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", fmt.Errorf("apertium: invalid JSON: %w", err)
 	}
@@ -103,7 +103,7 @@ func parseTranslateBody(raw []byte) (string, error) {
 	if errStr, ok := root["error"].(string); ok && strings.TrimSpace(errStr) != "" {
 		return "", fmt.Errorf("apertium: %s", errStr)
 	}
-	data, ok := root["responseData"].(map[string]interface{})
+	data, ok := root["responseData"].(map[string]any)
 	if !ok || data == nil {
 		return "", fmt.Errorf("apertium: unsupported language pair or empty responseData")
 	}

@@ -32,7 +32,6 @@ type setupCacheEntry struct {
 // Engine uses Bing Web Translator (translate-shell parity: www.bing.com).
 type Engine struct {
 	HTTP       *http.Client
-	mu         sync.Mutex
 	setupCache map[string]*setupCacheEntry
 	cacheMu    sync.Mutex
 }
@@ -48,9 +47,6 @@ func New(c *http.Client) *Engine {
 func (e *Engine) Name() string { return "bing" }
 
 func (e *Engine) Translate(ctx context.Context, in engine.TranslateInput) (engine.TranslateOutput, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
 	hosts := []string{translateBase, "https://cn.bing.com"}
 	var errs []error
 	for _, origin := range hosts {
@@ -227,7 +223,7 @@ func (e *Engine) setup(ctx context.Context, origin string) (cookie, ig, iid, tok
 	}
 
 	if m := reAbuse.FindStringSubmatch(html); len(m) > 1 {
-		var arr []interface{}
+		var arr []any
 		if err := json.Unmarshal([]byte(m[1]), &arr); err == nil && len(arr) >= 2 {
 			key = fmt.Sprint(arr[0])
 			token = fmt.Sprint(arr[1])
@@ -303,7 +299,7 @@ func parseTranslateResponse(raw []byte) (string, error) {
 
 // parseBingResponse extracts translation text and optional detected source language.
 func parseBingResponse(raw []byte) (text string, detected string, err error) {
-	var root []map[string]interface{}
+	var root []map[string]any
 	if err := json.Unmarshal(raw, &root); err != nil {
 		return "", "", fmt.Errorf("bing: invalid JSON: %w", err)
 	}
@@ -311,7 +307,7 @@ func parseBingResponse(raw []byte) (text string, detected string, err error) {
 		return "", "", fmt.Errorf("bing: unexpected JSON root")
 	}
 	first := root[0]
-	if dl, ok := first["detectedLanguage"].(map[string]interface{}); ok {
+	if dl, ok := first["detectedLanguage"].(map[string]any); ok {
 		if lang, ok := dl["language"].(string); ok {
 			detected = lang
 		}
@@ -319,11 +315,11 @@ func parseBingResponse(raw []byte) (text string, detected string, err error) {
 	if sc, ok := first["statusCode"].(float64); ok && sc == 400 {
 		return "", "", fmt.Errorf("bing: does not support the specified language(s)")
 	}
-	trans, ok := first["translations"].([]interface{})
+	trans, ok := first["translations"].([]any)
 	if !ok || len(trans) == 0 {
 		return "", "", fmt.Errorf("bing: missing translations in response")
 	}
-	t0, ok := trans[0].(map[string]interface{})
+	t0, ok := trans[0].(map[string]any)
 	if !ok {
 		return "", "", fmt.Errorf("bing: malformed translations[0]")
 	}

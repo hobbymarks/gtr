@@ -16,8 +16,6 @@ func (e *Engine) IdentifyLanguage(ctx context.Context, text, hostLang string) (s
 	if strings.TrimSpace(text) == "" {
 		return "", fmt.Errorf("bing: empty text")
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
 
 	hosts := []string{"https://www.bing.com", "https://cn.bing.com"}
 	var lastErr error

@@ -59,6 +59,6 @@ func Cyan(s string) string {
 }
 
 // ColorHeading formats a heading line.
-func ColorHeading(format string, a ...interface{}) string {
+func ColorHeading(format string, a ...any) string {
 	return Bold(fmt.Sprintf(format, a...))
 }
