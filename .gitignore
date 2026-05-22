@@ -6,3 +6,6 @@ dist/
 # Local editor state (this repo may use a nested .vscode Git checkout; use
 # gtr.code-workspace for shared Justfile / extension hints instead).
 .vscode/
+
+# Documentation is maintained in the project but not version-controlled.
+docs/
