@@ -86,7 +86,7 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 	}
 
 	l.SetCompleter(func(line string) []string {
-		return shellComplete(line, engineName)
+		return shellComplete(line)
 	})
 
 	var speak bool
@@ -97,7 +97,7 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 	signal.Notify(sigCh, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
-	fmt.Fprintf(cmd.OutOrStdout(), "gtr shell — Type :help for commands, exit/quit to leave, Ctrl+C to cancel input, Ctrl+D to exit.\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "gtr repl — Type :help for commands, exit/quit to leave, Ctrl+C to cancel input, Ctrl+D to exit.\n")
 	if base.Target == "" {
 		fmt.Fprintf(cmd.OutOrStdout(), "Set a target language with \":target <code>\" (e.g. \":target de\") or use -t when launching.\n")
 	}
@@ -394,7 +394,7 @@ func saveHistory(l *liner.State, path string) error {
 	return err
 }
 
-func shellComplete(line string, currentEngine string) []string {
+func shellComplete(line string) []string {
 	var completions []string
 
 	// Meta-command names (when line starts with : and no space yet)

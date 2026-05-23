@@ -7,12 +7,12 @@ import "strings"
 // it returns ok=false so the token is treated as ordinary text.
 func parseLangPairToken(s string) (source string, targets []string, ok bool) {
 	s = strings.TrimSpace(s)
-	i := strings.Index(s, ":")
-	if i < 0 {
+	left, right, found := strings.Cut(s, ":")
+	if !found {
 		return "", nil, false
 	}
-	left := strings.TrimSpace(s[:i])
-	right := strings.TrimSpace(s[i+1:])
+	left = strings.TrimSpace(left)
+	right = strings.TrimSpace(right)
 	if right == "" {
 		return "", nil, false
 	}

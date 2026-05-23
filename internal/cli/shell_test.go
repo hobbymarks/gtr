@@ -167,7 +167,7 @@ func TestRunShell_metaToggle(t *testing.T) {
 }
 
 func TestShellComplete_metaCommands(t *testing.T) {
-	completions := shellComplete(":eng", "mock")
+	completions := shellComplete(":eng")
 	found := false
 	for _, c := range completions {
 		if strings.HasPrefix(c, ":engine ") {
