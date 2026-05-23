@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/hobbymarks/gtr/internal/config"
 )
 
 func newConfigCmd() *cobra.Command {
@@ -48,9 +49,9 @@ func showConfig(cmd *cobra.Command) error {
 	fmt.Fprintln(out, "Key                  File value    Effective value")
 	fmt.Fprintln(out, "---                  ----------    ---------------")
 
-	keys := []string{"GTR_DEFAULT_ENGINE", "GTR_DEFAULT_TARGET", "GTR_TIMEOUT"}
+	keys := config.KnownConfigKeys()
 	for _, k := range keys {
-		fileVal := configFileValue(k)
+		fileVal := config.ConfigFileValueForPath(path, k)
 		envVal := os.Getenv(k)
 		effective := envVal
 		if effective == "" {
@@ -80,6 +81,9 @@ func newConfigSetCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.TrimSpace(args[0])
 			value := strings.TrimSpace(args[1])
+			if !config.IsKnownConfigKey(key) {
+				return fmt.Errorf("unknown config key %q (supported: %s)", key, strings.Join(config.KnownConfigKeys(), ", "))
+			}
 			if err := configSet(key, value); err != nil {
 				return err
 			}
@@ -96,6 +100,9 @@ func newConfigGetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.TrimSpace(args[0])
+			if !config.IsKnownConfigKey(key) {
+				return fmt.Errorf("unknown config key %q (supported: %s)", key, strings.Join(config.KnownConfigKeys(), ", "))
+			}
 			val := configFileValue(key)
 			if val == "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s is not set\n", key)
@@ -114,6 +121,9 @@ func newConfigUnsetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key := strings.TrimSpace(args[0])
+			if !config.IsKnownConfigKey(key) {
+				return fmt.Errorf("unknown config key %q (supported: %s)", key, strings.Join(config.KnownConfigKeys(), ", "))
+			}
 			if err := configUnset(key); err != nil {
 				return err
 			}
@@ -156,22 +166,7 @@ func configFileValue(key string) string {
 	if path == "" {
 		return ""
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 || strings.TrimSpace(parts[0]) != key {
-			continue
-		}
-		return strings.TrimSpace(parts[1])
-	}
-	return ""
+	return config.ConfigFileValueForPath(path, key)
 }
 
 func configSet(key, value string) error {
@@ -183,7 +178,10 @@ func configSet(key, value string) error {
 		return fmt.Errorf("cannot determine config file location")
 	}
 
-	lines := readConfigLines(path)
+	lines, err := readConfigLines(path)
+	if err != nil {
+		return fmt.Errorf("read config: %w", err)
+	}
 	found := false
 
 	for i, line := range lines {
@@ -212,7 +210,10 @@ func configUnset(key string) error {
 		return fmt.Errorf("cannot determine config file location")
 	}
 
-	lines := readConfigLines(path)
+	lines, err := readConfigLines(path)
+	if err != nil {
+		return fmt.Errorf("read config: %w", err)
+	}
 
 	var out []string
 	for _, line := range lines {
@@ -231,20 +232,41 @@ func configUnset(key string) error {
 	return writeConfigLines(path, out)
 }
 
-func readConfigLines(path string) []string {
+func readConfigLines(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	return lines
+	return lines, nil
 }
 
 func writeConfigLines(path string, lines []string) error {
-	// Trim trailing blank lines
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
 	}
 	content := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(path, []byte(content), 0644)
+
+	f, err := os.CreateTemp(filepath.Dir(path), ".gtrrc-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := f.Name()
+	if _, err := f.Write([]byte(content)); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }

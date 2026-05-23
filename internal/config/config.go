@@ -31,12 +31,24 @@ func DefaultTarget() string {
 	return EnvOverride("GTR_DEFAULT_TARGET")
 }
 
-func configFileValue(key string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
+// KnownConfigKeys returns the supported config file keys.
+func KnownConfigKeys() []string {
+	return []string{"GTR_DEFAULT_ENGINE", "GTR_DEFAULT_TARGET", "GTR_TIMEOUT"}
+}
+
+// IsKnownConfigKey reports whether key is a supported config key.
+func IsKnownConfigKey(key string) bool {
+	for _, k := range KnownConfigKeys() {
+		if k == key {
+			return true
+		}
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".gtrrc"))
+	return false
+}
+
+// ConfigFileValueForPath reads a .gtrrc-style file and returns the value for key.
+func ConfigFileValueForPath(path, key string) string {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}
@@ -56,4 +68,12 @@ func configFileValue(key string) string {
 		}
 	}
 	return ""
+}
+
+func configFileValue(key string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return ConfigFileValueForPath(filepath.Join(home, ".gtrrc"), key)
 }

@@ -5,7 +5,6 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -56,7 +55,6 @@ func newRoot() *cobra.Command {
 		dictionary    bool
 		speak         bool
 		view          bool
-		shell         bool
 		timeoutSec    int
 		jsonOut       bool
 		noColor       bool
@@ -66,6 +64,7 @@ func newRoot() *cobra.Command {
 		linguist      string
 		browser       bool
 		narrator      string
+		verbose       bool
 	)
 
 	cmd := &cobra.Command{
@@ -160,7 +159,7 @@ gtr update                                Update to latest release`),
 
 			engineName = strings.TrimSpace(strings.ToLower(engineName))
 			if engineName == "" {
-				return errors.New("engine name must not be empty")
+				return &usageError{msg: "engine name must not be empty"}
 			}
 
 			initColorOut(noColor)
@@ -187,10 +186,10 @@ gtr update                                Update to latest release`),
 			}
 
 			if !lang.IsKnownLanguage(source) {
-				return fmt.Errorf("unknown source language code %q", source)
+				return &usageError{fmt.Sprintf("unknown source language code %q", source)}
 			}
 			if !lang.IsKnownLanguage(hostLang) {
-				return fmt.Errorf("unknown host language code %q", hostLang)
+				return &usageError{fmt.Sprintf("unknown host language code %q", hostLang)}
 			}
 
 			sourceChanged := cmd.Flags().Lookup("source").Changed
@@ -211,43 +210,34 @@ gtr update                                Update to latest release`),
 			}
 
 			if identify && dump {
-				return errors.New("cannot combine --identify and --dump")
-			}
-			if shell && identify {
-				return errors.New("cannot combine --shell and --identify")
-			}
-			if shell && view {
-				return errors.New("cannot combine --shell and --view")
-			}
-			if shell && speak {
-				return errors.New("cannot combine --shell and --speak / --play")
+				return &usageError{msg: "cannot combine --identify and --dump"}
 			}
 			if view && strings.TrimSpace(outputPath) != "" {
-				return errors.New("cannot combine --view and -o")
+				return &usageError{msg: "cannot combine --view and -o"}
 			}
 			if dictionary && dump {
-				return errors.New("cannot combine --dictionary and --dump")
+				return &usageError{msg: "cannot combine --dictionary and --dump"}
 			}
 			if speak && (identify || dump) {
-				return errors.New("cannot combine --speak / --play with --identify or --dump")
+				return &usageError{msg: "cannot combine --speak / --play with --identify or --dump"}
 			}
 			if joinArgv && strings.TrimSpace(inputPath) != "" {
-				return errors.New("cannot combine -j and -i")
+				return &usageError{msg: "cannot combine -j and -i"}
 			}
 			if strings.TrimSpace(inputPath) != "" && len(args) > 0 {
-				return errors.New("cannot combine -i and positional text arguments")
+				return &usageError{msg: "cannot combine -i and positional text arguments"}
 			}
 			if joinArgv && len(args) == 0 {
-				return errors.New("-j requires at least one text argument")
+				return &usageError{msg: "-j requires at least one text argument"}
 			}
 
 			canon, factory, ok := engine.LookupFuzzy(engineName)
 			if !ok {
 				names := engine.Names()
 				if len(names) == 0 {
-					return fmt.Errorf("unknown engine %q (no engines registered)", engineName)
+					return &usageError{fmt.Sprintf("unknown engine %q (no engines registered)", engineName)}
 				}
-				return fmt.Errorf("unknown engine %q (registered: %s)", engineName, strings.Join(names, ", "))
+				return &usageError{fmt.Sprintf("unknown engine %q (registered: %s)", engineName, strings.Join(names, ", "))}
 			}
 			eng, engErr := factory()
 			if engErr != nil {
@@ -262,17 +252,16 @@ gtr update                                Update to latest release`),
 				target = strings.TrimSpace(source)
 			}
 
-			if !identify && !shell && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
+			if !identify && target == "" && len(args) == 0 && stdinTTY && !joinArgv && strings.TrimSpace(inputPath) == "" {
 				return cmd.Help()
 			}
-			if !identify && !shell && target == "" {
-				return errors.New("target language is required (-t / --target, or a leading SRC:TL token)")
+			if !identify && target == "" {
+				return &usageError{msg: "target language is required (-t / --target, or a leading SRC:TL token)"}
 			}
 
 			var text string
 			var err error
-			if !shell {
-				switch {
+			switch {
 				case joinArgv:
 					text = strings.Join(args, " ")
 				case strings.TrimSpace(inputPath) != "":
@@ -286,24 +275,23 @@ gtr update                                Update to latest release`),
 						return err
 					}
 				}
-			}
 
 			if browser {
 				return openBrowser(cmd.Context(), source, target, text)
 			}
 
 			if dictionary && !identify && !engine.CapabilitiesOf(canon).SupportsDictionary {
-				return fmt.Errorf("engine %q does not support dictionary mode (-d)", canon)
+				return &usageError{fmt.Sprintf("engine %q does not support dictionary mode (-d)", canon)}
 			}
 			if speak && !identify {
 				switch canon {
 				case "google", "auto", "bing":
 				default:
-					return fmt.Errorf("engine %q does not support --speak / --play (only google, bing, and auto)", canon)
+					return &usageError{fmt.Sprintf("engine %q does not support --speak / --play (only google, bing, and auto)", canon)}
 				}
 			}
 			if strings.TrimSpace(downloadAudio) != "" && !speak {
-				return fmt.Errorf("--download-audio requires --speak or --play")
+				return &usageError{msg: "--download-audio requires --speak or --play"}
 			}
 
 			out := cmd.OutOrStdout()
@@ -342,24 +330,10 @@ gtr update                                Update to latest release`),
 				return err
 			}
 
-			if shell {
-				base := engine.TranslateInput{
-					Source:        source,
-					Target:        target,
-					HostLang:      hostLang,
-					Brief:         brief,
-					NoAutocorrect: noAutocorrect,
-					Debug:         debug,
-					Dump:          dump,
-					Dictionary:    dictionary,
-				}
-				return RunShell(cmd, eng, base, canon)
-			}
-
 			allTargets := append([]string{target}, extraTargets...)
 			for _, tl := range allTargets {
 				if !lang.IsKnownLanguage(tl) {
-					return fmt.Errorf("unknown target language code %q", tl)
+					return &usageError{fmt.Sprintf("unknown target language code %q", tl)}
 				}
 			}
 			type jsonSingle struct {
@@ -375,6 +349,9 @@ gtr update                                Update to latest release`),
 				err error
 			}
 			ch := make(chan result, len(allTargets))
+			if verbose {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Translating via %s [%s→%s]...\n", canon, source, strings.Join(allTargets, ", "))
+			}
 			for i, tl := range allTargets {
 				go func(idx int, tl string) {
 					outi, err := eng.Translate(cmd.Context(), engine.TranslateInput{
@@ -398,6 +375,9 @@ gtr update                                Update to latest release`),
 					return r.err
 				}
 				results[r.idx] = r
+			}
+			if verbose {
+				fmt.Fprintf(cmd.ErrOrStderr(), "OK (%s→%s)\n", source, strings.Join(allTargets, ", "))
 			}
 			var jsonResults []jsonSingle
 			for i, r := range results {
@@ -461,7 +441,7 @@ gtr update                                Update to latest release`),
 							return werr
 						}
 					} else {
-						if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
+						if werr := playTTS(cmd.Context(), u); werr != nil {
 							return fmt.Errorf("play: %w", werr)
 						}
 					}
@@ -499,7 +479,6 @@ gtr update                                Update to latest release`),
 	cmd.Flags().BoolVar(&speak, "speak", false, "Translate and speak via Google TTS (requires mpv or ffplay)")
 	cmd.Flags().BoolVar(&speak, "play", false, "Same as --speak")
 	cmd.Flags().BoolVar(&view, "view", false, "Send output through $PAGER (less -R or more)")
-	cmd.Flags().BoolVar(&shell, "shell", false, "Same as gtr repl (interactive REPL with history and tab completion)")
 	cmd.Flags().IntVar(&timeoutSec, "timeout", 0, "HTTP request timeout in seconds (default 30; also GTR_TIMEOUT env)")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output structured JSON instead of plain text")
 	cmd.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI color output")
@@ -509,8 +488,10 @@ gtr update                                Update to latest release`),
 	cmd.Flags().StringVarP(&linguist, "linguist", "L", "", "Show language details (code or code+code...)")
 	cmd.Flags().BoolVarP(&browser, "browser", "B", false, "Open Google Translate page in browser instead of translating")
 	cmd.Flags().StringVarP(&narrator, "narrator", "n", "", "TTS voice language code (override the translation target language)")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output (engine, source, target info)")
 
 	cmd.AddCommand(newReplCmd())
+	cmd.AddCommand(newShellCmd())
 	cmd.AddCommand(newConfigCmd())
 	cmd.AddCommand(newUpdateCmd())
 
@@ -528,11 +509,21 @@ func isSpellEngine(name string) bool {
 
 // openBrowser constructs a Google Translate URL and opens it in the default browser.
 func openBrowser(ctx context.Context, source, target, text string) error {
-	u := "https://translate.google.com/?" +
+	const maxURLLength = 2000
+	baseURL := "https://translate.google.com/?" +
 		"sl=" + url.QueryEscape(source) +
 		"&tl=" + url.QueryEscape(target) +
-		"&text=" + url.QueryEscape(text) +
 		"&op=translate"
+	if len(baseURL)+len("&text=")+len(url.QueryEscape(text)) > maxURLLength {
+		for len(text) > 0 {
+			trial := baseURL + "&text=" + url.QueryEscape(text)
+			if len(trial) <= maxURLLength {
+				break
+			}
+			text = text[:len(text)-1]
+		}
+	}
+	u := baseURL + "&text=" + url.QueryEscape(text)
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
@@ -546,10 +537,123 @@ func openBrowser(ctx context.Context, source, target, text string) error {
 	return cmd.Run()
 }
 
+type usageError struct{ msg string }
+
+func (e *usageError) Error() string { return e.msg }
+
 // Main is a tiny entrypoint helper so cmd/gtr can stay minimal.
 func Main() {
 	if err := Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "gtr:", err)
+		if _, ok := err.(*usageError); ok {
+			os.Exit(2)
+		}
 		os.Exit(1)
 	}
+}
+
+func newShellCmd() *cobra.Command {
+	var (
+		engineName    string
+		target        string
+		source        string
+		hostLang      string
+		brief         bool
+		noAutocorrect bool
+		debug         bool
+		dump          bool
+		dictionary    bool
+		timeoutSec    int
+		noColor       bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "shell",
+		Short: "Start an interactive translation REPL",
+		Long: strings.TrimSpace(`
+Start an interactive Read-Eval-Print-Loop for translation.
+
+Provides line editing, persistent history (~/.gtr_history), tab completion for
+commands/engine names/language codes, and meta-commands (:engine, :target, etc.).
+Type :help inside the REPL for full command list.`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			initColorOut(noColor)
+
+			if timeoutSec == 0 {
+				if s := strings.TrimSpace(config.EnvOverride("GTR_TIMEOUT")); s != "" {
+					if n, err := strconv.Atoi(s); err == nil && n > 0 {
+						timeoutSec = n
+					}
+				}
+			}
+			if timeoutSec > 0 {
+				httpx.SharedClientTimeout = time.Duration(timeoutSec) * time.Second
+			}
+
+			engineName = strings.TrimSpace(strings.ToLower(engineName))
+			if engineName == "" {
+				return fmt.Errorf("engine name must not be empty")
+			}
+
+			target = strings.TrimSpace(target)
+			if target == "" {
+				target = config.DefaultTarget()
+			}
+			source = strings.TrimSpace(source)
+			if source == "" {
+				source = "auto"
+			}
+			hostLang = strings.TrimSpace(hostLang)
+			if hostLang == "" {
+				hostLang = "en"
+			}
+
+			if !lang.IsKnownLanguage(source) {
+				return fmt.Errorf("unknown source language code %q", source)
+			}
+			if !lang.IsKnownLanguage(hostLang) {
+				return fmt.Errorf("unknown host language code %q", hostLang)
+			}
+
+			canon, factory, ok := engine.LookupFuzzy(engineName)
+			if !ok {
+				names := engine.Names()
+				if len(names) == 0 {
+					return fmt.Errorf("unknown engine %q (no engines registered)", engineName)
+				}
+				return fmt.Errorf("unknown engine %q (registered: %s)", engineName, strings.Join(names, ", "))
+			}
+			eng, err := factory()
+			if err != nil {
+				return fmt.Errorf("engine %q: %w", canon, err)
+			}
+
+			base := engine.TranslateInput{
+				Source:        source,
+				Target:        target,
+				HostLang:      hostLang,
+				Brief:         brief,
+				NoAutocorrect: noAutocorrect,
+				Debug:         debug,
+				Dump:          dump,
+				Dictionary:    dictionary,
+			}
+			return RunShell(cmd, eng, base, canon)
+		},
+	}
+
+	defEngine := config.DefaultEngine()
+	cmd.Flags().StringVarP(&engineName, "engine", "e", defEngine, "translation engine")
+	cmd.Flags().StringVarP(&target, "target", "t", "", "target language code")
+	cmd.Flags().StringVarP(&source, "source", "s", "auto", "source language code")
+	cmd.Flags().StringVar(&hostLang, "host-lang", "en", "host / UI language code")
+	cmd.Flags().BoolVarP(&brief, "brief", "b", false, "Brief output (translation text only, trimmed)")
+	cmd.Flags().BoolVar(&noAutocorrect, "no-autocorrect", false, "Disable autocorrect (Google: qc instead of qca)")
+	cmd.Flags().BoolVar(&debug, "debug", false, "Log request URL to stderr")
+	cmd.Flags().BoolVar(&dump, "dump", false, "Print raw HTTP response body instead of parsed translation")
+	cmd.Flags().BoolVarP(&dictionary, "dictionary", "d", false, "Include dictionary / auxiliary JSON segments (Google)")
+	cmd.Flags().IntVar(&timeoutSec, "timeout", 0, "HTTP request timeout in seconds (also GTR_TIMEOUT env)")
+	cmd.Flags().BoolVar(&noColor, "no-color", false, "Disable ANSI color output")
+
+	return cmd
 }

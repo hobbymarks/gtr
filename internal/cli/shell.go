@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/peterh/liner"
 	"github.com/spf13/cobra"
@@ -91,6 +93,10 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 	var lastText string
 	var narrator string
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
 	fmt.Fprintf(cmd.OutOrStdout(), "gtr shell — Type :help for commands, exit/quit to leave, Ctrl+C to cancel input, Ctrl+D to exit.\n")
 	if base.Target == "" {
 		fmt.Fprintf(cmd.OutOrStdout(), "Set a target language with \":target <code>\" (e.g. \":target de\") or use -t when launching.\n")
@@ -120,6 +126,14 @@ func runShellLiner(cmd *cobra.Command, eng engine.Engine, base engine.TranslateI
 		}
 
 		l.AppendHistory(line)
+
+		select {
+		case <-sigCh:
+			_ = saveHistory(l, histPath)
+			fmt.Fprintln(cmd.OutOrStdout())
+			os.Exit(0)
+		default:
+		}
 
 		if err := processLine(cmd, &eng, &base, &engineName, &speak, &lastText, &narrator, line); err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
@@ -169,7 +183,7 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 				if werr != nil {
 					return fmt.Errorf("tts: %w", werr)
 				}
-				if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
+				if werr := playTTS(cmd.Context(), u); werr != nil {
 					return fmt.Errorf("play: %w", werr)
 				}
 			}
@@ -198,7 +212,7 @@ func processLine(cmd *cobra.Command, eng *engine.Engine, base *engine.TranslateI
 		if werr != nil {
 			return fmt.Errorf("tts: %w", werr)
 		}
-		if werr := playGoogleTTS(cmd.Context(), u); werr != nil {
+		if werr := playTTS(cmd.Context(), u); werr != nil {
 			return fmt.Errorf("play: %w", werr)
 		}
 	}
@@ -255,19 +269,31 @@ Ctrl+D            exit shell`)
 		if len(parts) < 2 {
 			return fmt.Errorf("usage: :target <code>")
 		}
-		base.Target = strings.TrimSpace(parts[1])
+		code := strings.TrimSpace(parts[1])
+		if !lang.IsKnownLanguage(code) {
+			return fmt.Errorf("unknown target language code %q", code)
+		}
+		base.Target = code
 		fmt.Fprintf(cmd.OutOrStdout(), "target: %s\n", base.Target)
 	case ":source":
 		if len(parts) < 2 {
 			return fmt.Errorf("usage: :source <code>")
 		}
-		base.Source = strings.TrimSpace(parts[1])
+		code := strings.TrimSpace(parts[1])
+		if code != "auto" && !lang.IsKnownLanguage(code) {
+			return fmt.Errorf("unknown source language code %q", code)
+		}
+		base.Source = code
 		fmt.Fprintf(cmd.OutOrStdout(), "source: %s\n", base.Source)
 	case ":host":
 		if len(parts) < 2 {
 			return fmt.Errorf("usage: :host <code>")
 		}
-		base.HostLang = strings.TrimSpace(parts[1])
+		code := strings.TrimSpace(parts[1])
+		if !lang.IsKnownLanguage(code) {
+			return fmt.Errorf("unknown host language code %q", code)
+		}
+		base.HostLang = code
 		fmt.Fprintf(cmd.OutOrStdout(), "host: %s\n", base.HostLang)
 	case ":brief":
 		base.Brief = true
@@ -407,7 +433,7 @@ func shellComplete(line string, currentEngine string) []string {
 					completions = append(completions, parts[0]+" "+name+" ")
 				}
 			}
-		case ":target", ":source", ":host":
+		case ":target", ":source", ":host", ":narrator":
 			prefix := ""
 			if len(parts) > 1 {
 				prefix = strings.ToLower(parts[1])

@@ -2,11 +2,14 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/hobbymarks/gtr/internal/config"
 	"github.com/hobbymarks/gtr/internal/engine"
+	"github.com/hobbymarks/gtr/internal/httpx"
 	"github.com/hobbymarks/gtr/internal/lang"
 )
 
@@ -36,6 +39,17 @@ commands/engine names/language codes, and meta-commands (:engine, :target, etc.)
 Type :help inside the REPL for full command list.`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			initColorOut(noColor)
+
+			if timeoutSec == 0 {
+				if s := strings.TrimSpace(config.EnvOverride("GTR_TIMEOUT")); s != "" {
+					if n, err := strconv.Atoi(s); err == nil && n > 0 {
+						timeoutSec = n
+					}
+				}
+			}
+			if timeoutSec > 0 {
+				httpx.SharedClientTimeout = time.Duration(timeoutSec) * time.Second
+			}
 
 			engineName = strings.TrimSpace(strings.ToLower(engineName))
 			if engineName == "" {

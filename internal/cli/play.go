@@ -40,20 +40,34 @@ func ttsURLForEngine(eng engine.Engine, in engine.TranslateInput, translated str
 	}
 }
 
-func playGoogleTTS(ctx context.Context, u string) error {
+func fetchTTSResponse(ctx context.Context, u string) (*http.Response, error) {
 	client := httpx.NewClient()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("TTS fetch: %w", err)
+		return nil, fmt.Errorf("TTS fetch: %w", err)
+	}
+	if resp.StatusCode >= 400 {
+		resp.Body.Close()
+		return nil, fmt.Errorf("TTS HTTP %d", resp.StatusCode)
+	}
+	ct := resp.Header.Get("Content-Type")
+	if ct != "" && !strings.HasPrefix(ct, "audio/") {
+		resp.Body.Close()
+		return nil, fmt.Errorf("TTS: unexpected Content-Type %q (expected audio/*)", ct)
+	}
+	return resp, nil
+}
+
+func playTTS(ctx context.Context, u string) error {
+	resp, err := fetchTTSResponse(ctx, u)
+	if err != nil {
+		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("TTS HTTP %d", resp.StatusCode)
-	}
 
 	// Try streaming directly to player via stdin (faster, no temp file)
 	for _, args := range [][]string{
@@ -65,13 +79,13 @@ func playGoogleTTS(ctx context.Context, u string) error {
 			continue
 		}
 		cmd := exec.CommandContext(ctx, bin, args[1:]...)
-		cmd.Stdin = resp.Body
+		cmd.Stdin = io.LimitReader(resp.Body, 8<<20)
 		cmd.Stdout = io.Discard
 		cmd.Stderr = io.Discard
 		return cmd.Run()
 	}
 
-	// Fallback: write to temp file and play (share the same HTTP body reader)
+	// Fallback: write to temp file and play
 	f, err := os.CreateTemp("", "gtr-tts-*.mp3")
 	if err != nil {
 		return err
@@ -88,21 +102,12 @@ func playGoogleTTS(ctx context.Context, u string) error {
 	return playAudioFile(ctx, path)
 }
 
-// downloadTTSFile fetches TTS audio from the given URL and saves it to dstPath.
 func downloadTTSFile(ctx context.Context, u, dstPath string) error {
-	client := httpx.NewClient()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	resp, err := fetchTTSResponse(ctx, u)
 	if err != nil {
 		return err
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("TTS fetch: %w", err)
-	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("TTS HTTP %d", resp.StatusCode)
-	}
 	f, err := os.Create(dstPath)
 	if err != nil {
 		return err
@@ -118,6 +123,10 @@ func playAudioFile(ctx context.Context, path string) error {
 	candidates := [][]string{
 		{"mpv", "--no-video", "--really-quiet", path},
 		{"ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path},
+		{"paplay", path},
+		{"aplay", path},
+		{"play", "-q", path},
+		{"cvlc", "--play-and-exit", "--no-video", "--intf", "dummy", path},
 	}
 	if runtime.GOOS == "darwin" {
 		candidates = append([][]string{{"afplay", path}}, candidates...)
@@ -125,58 +134,24 @@ func playAudioFile(ctx context.Context, path string) error {
 	if runtime.GOOS == "windows" {
 		return exec.CommandContext(ctx, "cmd", "/c", "start", "", "\""+path+"\"").Run()
 	}
-	var lastErr error
+	var errs []string
 	for _, argv := range candidates {
 		bin, err := exec.LookPath(argv[0])
 		if err != nil {
-			lastErr = err
+			errs = append(errs, fmt.Sprintf("%s: not found", argv[0]))
 			continue
 		}
 		cmd := exec.CommandContext(ctx, bin, argv[1:]...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			lastErr = err
+			errs = append(errs, fmt.Sprintf("%s: %v", argv[0], err))
 			continue
 		}
 		return nil
 	}
-	if lastErr == nil {
-		lastErr = fmt.Errorf("no audio player found (tried mpv, ffplay)")
+	if len(errs) == 0 {
+		errs = append(errs, "no audio player found")
 	}
-	return fmt.Errorf("play audio: %w", lastErr)
-}
-
-// openPagerWriter returns a WriteCloser that feeds the system pager (PAGER or less -R / more).
-func openPagerWriter(ctx context.Context) (io.WriteCloser, func(), error) {
-	pager := strings.TrimSpace(os.Getenv("PAGER"))
-	if pager == "" {
-		if runtime.GOOS == "windows" {
-			pager = "more"
-		} else {
-			pager = "less -R"
-		}
-	}
-	argv := strings.Fields(pager)
-	if len(argv) == 0 {
-		return nil, func() {}, fmt.Errorf("empty PAGER")
-	}
-	bin, err := exec.LookPath(argv[0])
-	if err != nil {
-		return nil, func() {}, fmt.Errorf("pager %q: %w", argv[0], err)
-	}
-	cmd := exec.CommandContext(ctx, bin, argv[1:]...)
-	cmd.Stderr = os.Stderr
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, func() {}, err
-	}
-	if err := cmd.Start(); err != nil {
-		return nil, func() {}, err
-	}
-	cleanup := func() {
-		_ = stdin.Close()
-		_ = cmd.Wait()
-	}
-	return stdin, cleanup, nil
+	return fmt.Errorf("play audio: %s", strings.Join(errs, "; "))
 }

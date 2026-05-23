@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/hobbymarks/gtr/internal/httpx"
@@ -98,7 +99,6 @@ func runUpdate(cmd *cobra.Command, dryRun bool) error {
 		return fmt.Errorf("fetch checksums: %w", err)
 	}
 
-	fmt.Fprintf(out, "Downloading %s...\n", assetName)
 	data, err := downloadAsset(cmd, assetURL)
 	if err != nil {
 		return fmt.Errorf("download: %w", err)
@@ -214,7 +214,31 @@ func downloadAsset(cmd *cobra.Command, url string) ([]byte, error) {
 		return nil, fmt.Errorf("download returned %d", resp.StatusCode)
 	}
 
-	return io.ReadAll(io.LimitReader(resp.Body, 100<<20))
+	name := url[strings.LastIndex(url, "/")+1:]
+	fmt.Fprintf(cmd.OutOrStdout(), "Downloading %s...", name)
+
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				fmt.Fprintln(cmd.OutOrStdout())
+				return
+			case <-ticker.C:
+				fmt.Fprint(cmd.OutOrStdout(), ".")
+			}
+		}
+	}()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 100<<20))
+	close(done)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func extractBinary(data []byte, assetName string) ([]byte, error) {
