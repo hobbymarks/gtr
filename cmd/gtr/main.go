@@ -3,6 +3,7 @@ package main
 
 import (
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/hobbymarks/gtr/internal/cli"
@@ -23,16 +24,27 @@ var (
 )
 
 func versionString() string {
-	if commit != "" {
-		if version == commit || strings.HasPrefix(version, commit+"-") {
-			return version
+	if version != "dev" {
+		if commit != "" {
+			if version == commit || strings.HasPrefix(version, commit+"-") {
+				return version
+			}
+			return version + "-" + commit
 		}
-		return version + "-" + commit
+		return version
+	}
+	if commit != "" {
+		return commit
 	}
 	if v := strings.TrimSpace(os.Getenv("GTR_VERSION")); v != "" {
 		return v
 	}
-	return version
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if v := info.Main.Version; v != "" && v != "(devel)" {
+			return v
+		}
+	}
+	return "dev"
 }
 
 func main() {
