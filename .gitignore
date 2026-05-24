@@ -9,3 +9,6 @@ dist/
 
 # Documentation is maintained in the project but not version-controlled.
 docs/
+
+# Editor-specific project settings.
+.zed/
