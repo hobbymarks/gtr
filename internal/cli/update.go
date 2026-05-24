@@ -59,6 +59,9 @@ func runUpdate(cmd *cobra.Command, dryRun bool) error {
 	out := cmd.OutOrStdout()
 
 	current := strings.TrimPrefix(Version, "v")
+	if i := strings.Index(current, "-"); i >= 0 {
+		current = current[:i]
+	}
 	latest, assets, err := fetchLatestRelease(cmd)
 	if err != nil {
 		return fmt.Errorf("fetch release: %w", err)
